@@ -29,9 +29,11 @@ def generate_serbia_from_bigearth():
     print(f'[train, validation, test] = [{train}, {validation}, {test}]')
     print('dataset generated in folder: ' + serbia_dataset_path)
 
+_32_GBs = 1024*1024*1024*32
+
 def generate_lmdb_from_dataset(dataset_directory:Path, lmdb_directory:Path):
 
-    env = lmdb.open(str(lmdb_directory.absolute()), map_size=1024*1024*1024*32)    # 32 gb
+    env = lmdb.open(str(lmdb_directory), map_size=_32_GBs)    # 32 gb
     txn = env.begin(write=True)
 
     for dataset_split_directory in dataset_directory.iterdir():
@@ -43,3 +45,15 @@ def generate_lmdb_from_dataset(dataset_directory:Path, lmdb_directory:Path):
 
     txn.commit()
     env.close()
+
+def load_patches_from_lmdb(lmdb_directory:Path):
+    env = lmdb.open(str(lmdb_directory), map_size=_32_GBs)
+    txn = env.begin()
+
+    patches = []
+    for _, v in txn.cursor():
+        patches.append(pk.loads(v))
+
+    env.close()
+
+    return patches
