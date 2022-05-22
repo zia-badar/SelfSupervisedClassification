@@ -49,7 +49,7 @@ class Serbia(Dataset):
         labels = torch.zeros(len(Patch.label_to_index))
         labels[patch.labels] = 1
 
-        return processed, labels
+        return processed, processed, labels
 
     def __len__(self):
         return len(self.data_keys)
