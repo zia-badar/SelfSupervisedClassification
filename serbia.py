@@ -1,14 +1,15 @@
-import torch
-from torch.utils.data import Dataset
-import lmdb
-from pathlib import Path
 import pickle as pk
-import numpy as np
-from torch.nn.functional import interpolate
-import torchvision.transforms
+from pathlib import Path
 
-from utils import LMDB_MAP_SIZE
+import lmdb
+import numpy as np
+import torch
+import torchvision.transforms
+from torch.utils.data import Dataset
+
 from patch import Patch
+from utils import LMDB_MAP_SIZE
+
 
 class Serbia(Dataset):
 
@@ -44,7 +45,11 @@ class Serbia(Dataset):
             processed[i] = bdata
 
         env.close()
-        return processed, patch.labels
+
+        labels = torch.zeros(len(Patch.label_to_index))
+        labels[patch.labels] = 1
+
+        return processed, labels
 
     def __len__(self):
         return len(self.data_keys)
