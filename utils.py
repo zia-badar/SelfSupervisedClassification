@@ -10,26 +10,23 @@ from patch import Patch
 
 LMDB_MAP_SIZE = 1024*1024*1024*32           # 32 gb
 
-def generate_serbia_from_bigearth():
-    big_eath_meta_parquet_path = '/home/zia/Downloads/extended_ben_gdf.parquet'
-    big_earth_dataset_path = '/home/zia/Downloads/BigEarthNet-v1.0/'
-    serbia_dataset_path = 'serbia_dataset/'
-
-    gdf = gp.read_parquet(big_eath_meta_parquet_path)
+def generate_serbia_from_bigearth(big_earth_dataset_path = Path('/BigEarthNet-v1.0/'), big_eath_meta_parquet_path = Path('/extended_ben_gdf.parquet'), serbia_dataset_path = Path('./serbia_dataset/')):
+    
+    gdf = gp.read_parquet(str(big_eath_meta_parquet_path))
     gdf = gdf[gdf.snow != True]
     gdf = gdf[gdf.cloud_or_shadow != True]
     gdf = gdf[gdf.country == 'Serbia']
 
-    for _, row in gdf.iterrows():
+    for _, row in tqdm(gdf.iterrows(), total=len(gdf)):
         patch_name = row['name']
         split_folder = (' ' if row['original_split'] == None else row['original_split']) + '/'
-        shutil.copytree(big_earth_dataset_path + patch_name, serbia_dataset_path + split_folder + patch_name)
+        shutil.copytree(str(big_earth_dataset_path / patch_name), str(serbia_dataset_path / split_folder / patch_name))
 
     train = gdf[gdf.original_split == 'train'].size
     validation = gdf[gdf.original_split == 'validation'].size
     test = gdf[gdf.original_split == 'test'].size
     print(f'[train, validation, test] = [{train}, {validation}, {test}]')
-    print('dataset generated in folder: ' + serbia_dataset_path)
+    print('dataset generated in folder: ' + str(serbia_dataset_path))
 
 
 def generate_lmdb_from_dataset(dataset_directory:Path, lmdb_directory:Path):

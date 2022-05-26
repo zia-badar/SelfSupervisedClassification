@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from DCL.model import Model
 from serbia import Serbia
+from utils import generate_serbia_from_bigearth
 
 
 def get_negative_mask(batch_size):
@@ -62,17 +63,18 @@ def train(net, data_loader, train_optimizer, temperature, debiased, tau_plus):
     return total_loss / total_num
 
 if __name__ == '__main__':
+	generate_serbia_from_bigearth(Path('/beegfs/scratch/rsim_data/BigEarthNet-v1.0/'), Path('/home/users/z/zia_badar/extended_ben_gdf.parquet'))
     # generate_lmdb_from_dataset(Path('serbia_dataset'), Path('serbia_dataset_lmdb'))
 
-    batch_size = 8
-    epochs = 100
-
-    train_dl = DataLoader(Serbia(Path('serbia_dataset_lmdb'), split='train'), batch_size=batch_size, num_workers=16, shuffle=True, drop_last=True)
-
-    model = Model(128).cuda()
-    model = nn.DataParallel(model)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-
-    for epoch in range(1, epochs + 1):
-        train(model, train_dl, optimizer, .5, True, .1)
-        torch.save(model.state_dict(), f'results/model_{epoch}.pth')
+	batch_size = 8
+	epochs = 100
+	
+	train_dl = DataLoader(Serbia(Path('serbia_dataset_lmdb'), split='train'), batch_size=batch_size, num_workers=16, shuffle=True, drop_last=True)
+	
+	model = Model(128).cuda()
+	model = nn.DataParallel(model)
+	optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+	
+	for epoch in range(1, epochs + 1):
+			train(model, train_dl, optimizer, .5, True, .1)
+			torch.save(model.state_dict(), f'results/model_{epoch}.pth')
