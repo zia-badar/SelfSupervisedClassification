@@ -1,15 +1,14 @@
 from pathlib import Path
 
+import numpy as np
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from serbia import Serbia
-from utils import generate_lmdb_from_dataset
-from torch.utils.data import DataLoader
-from torch import nn
-import torch
-
 from DCL.model import Model
-import numpy as np
+from serbia import Serbia
+
 
 def get_negative_mask(batch_size):
     negative_mask = torch.ones((batch_size, 2 * batch_size), dtype=bool)
@@ -62,15 +61,18 @@ def train(net, data_loader, train_optimizer, temperature, debiased, tau_plus):
 
     return total_loss / total_num
 
-
 if __name__ == '__main__':
     # generate_lmdb_from_dataset(Path('serbia_dataset'), Path('serbia_dataset_lmdb'))
 
-    batch_size=8
-    train_dl = DataLoader(Serbia(Path('serbia_dataset_lmdb'), 'train'), batch_size=batch_size, shuffle=True, num_workers=16, drop_last=True, pin_memory=True)
+    batch_size = 8
+    epochs = 100
+
+    train_dl = DataLoader(Serbia(Path('serbia_dataset_lmdb'), split='train'), batch_size=batch_size, num_workers=16, shuffle=True, drop_last=True)
+
     model = Model(128).cuda()
     model = nn.DataParallel(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    epochs = 100
+
     for epoch in range(1, epochs + 1):
         train(model, train_dl, optimizer, .5, True, .1)
+        torch.save(model.state_dict(), f'results/model_{epoch}.pth')

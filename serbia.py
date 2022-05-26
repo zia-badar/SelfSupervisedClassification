@@ -4,8 +4,9 @@ from pathlib import Path
 import lmdb
 import numpy as np
 import torch
-import torchvision.transforms
+import torchvision
 from torch.utils.data import Dataset
+from torchvision.transforms.functional import hflip
 
 from patch import Patch
 from utils import LMDB_MAP_SIZE
@@ -49,7 +50,7 @@ class Serbia(Dataset):
         labels = torch.zeros(len(Patch.label_to_index))
         labels[patch.labels] = 1
 
-        return processed, processed, labels
+        return processed, hflip(processed), labels
 
     def __len__(self):
         return len(self.data_keys)
