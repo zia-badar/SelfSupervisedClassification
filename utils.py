@@ -29,7 +29,7 @@ def generate_serbia_from_bigearth(big_earth_dataset_path = Path('/BigEarthNet-v1
     print('dataset generated in folder: ' + str(serbia_dataset_path))
 
 
-def generate_lmdb_from_dataset(dataset_directory:Path, lmdb_directory:Path):
+def generate_lmdb_from_dataset(dataset_directory = Path('./serbia_dataset/'), lmdb_directory = Path('./serbia_dataset_lmdb')):
 
     env = lmdb.open(str(lmdb_directory), map_size=LMDB_MAP_SIZE)
     txn = env.begin(write=True)
