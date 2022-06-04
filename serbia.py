@@ -21,22 +21,18 @@ class Serbia(Dataset):
         self.split = split
         self.lmdb_directory = lmdb_directory
 
-        env = lmdb.open(str(self.lmdb_directory), map_size=LMDB_MAP_SIZE)
-        txn = env.begin()
+        self.env = lmdb.open(str(self.lmdb_directory), map_size=LMDB_MAP_SIZE, readonly=True, lock=False)
 
-        self.data_keys = []
-        for _, v in txn.cursor():
-            patch = pk.loads(v)
-            if (patch.split == self.split):
-                self.data_keys.append(patch.name)
-
-        env.close()
+        with self.env.begin(buffers=True) as txn:
+            self.data_keys = []
+            for _, v in txn.cursor():
+                patch = pk.loads(v)
+                if (patch.split == self.split):
+                    self.data_keys.append(patch.name)
 
     def __getitem__(self, item):
-        env = lmdb.open(str(self.lmdb_directory), map_size=LMDB_MAP_SIZE)
-        txn = env.begin()
-
-        patch = pk.loads(txn.get(pk.dumps(self.data_keys[item])))
+        with self.env.begin(buffers=True) as txn:
+            patch = pk.loads(txn.get(pk.dumps(self.data_keys[item])))
 
         processed = torch.zeros((len(Patch.band_to_index),) + Serbia.size, dtype=torch.float32)
         for i, bdata in enumerate(patch.data):
@@ -45,12 +41,11 @@ class Serbia(Dataset):
             bdata = Serbia.resize(bdata.unsqueeze(0)).squeeze(0)
             processed[i] = bdata
 
-        env.close()
-
-        labels = torch.zeros(len(Patch.label_to_index))
+        labels = torch.zeros(len(Patch._19_label_to_index))
         labels[patch.labels] = 1
 
-        return processed, hflip(processed), labels
+        # return processed, hflip(processed), labels
+        return processed, labels
 
     def __len__(self):
         return len(self.data_keys)

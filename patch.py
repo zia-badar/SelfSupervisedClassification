@@ -10,7 +10,11 @@ from PIL import Image
 class Patch:
     band_to_index = {'B02' : 0, 'B03' : 1, 'B04' : 2, 'B05' : 3, 'B06' : 4, 'B07' : 5, 'B08' : 6, 'B8A' : 7, 'B11' : 8, 'B12' : 9}
     band_to_exclude = {'B01', 'B09', 'B10'}
-    label_to_index = {'Agro-forestry areas': 0, 'Airports': 1, 'Annual crops associated with permanent crops': 2, 'Bare rock': 3, 'Beaches, dunes, sands': 4, 'Broad-leaved forest': 5, 'Burnt areas': 6, 'Coastal lagoons': 7, 'Complex cultivation patterns': 8, 'Coniferous forest': 9, 'Construction sites': 10, 'Continuous urban fabric': 11, 'Discontinuous urban fabric': 12, 'Dump sites': 13, 'Estuaries': 14, 'Fruit trees and berry plantations': 15, 'Green urban areas': 16, 'Industrial or commercial units': 17, 'Inland marshes': 18, 'Intertidal flats': 19, 'Land principally occupied by agriculture, with significant areas of natural vegetation': 20, 'Mineral extraction sites': 21, 'Mixed forest': 22, 'Moors and heathland': 23, 'Natural grassland': 24, 'Non-irrigated arable land': 25, 'Olive groves': 26, 'Pastures': 27, 'Peatbogs': 28, 'Permanently irrigated land': 29, 'Port areas': 30, 'Rice fields': 31, 'Road and rail networks and associated land': 32, 'Salines': 33, 'Salt marshes': 34, 'Sclerophyllous vegetation': 35, 'Sea and ocean': 36, 'Sparsely vegetated areas': 37, 'Sport and leisure facilities': 38, 'Transitional woodland/shrub': 39, 'Vineyards': 40, 'Water bodies': 41, 'Water courses': 42}
+    _43_to_19 = {'Continuous urban fabric': 'Urban fabric', 'Discontinuous urban fabric': 'Urban fabric', 'Industrial or commercial units': 'Industrial or commercial units', 'Road and rail networks and associated land': 'REMOVED', 'Port areas': 'REMOVED', 'Airports': 'REMOVED', 'Mineral extraction sites': 'REMOVED', 'Dump sites': 'REMOVED', 'Construction sites': 'REMOVED', 'Green urban areas': 'REMOVED', 'Sport and leisure facilities': 'REMOVED', 'Non-irrigated arable land': 'Arable land', 'Permanently irrigated land': 'Arable land', 'Rice fields': 'Arable land', 'Vineyards': 'Permanent crops', 'Fruit trees and berry plantations': 'Permanent crops', 'Olive groves': 'Permanent crops', 'Pastures': 'Pastures', 'Annual crops associated with permanent crops': 'Permanent crops', 'Complex cultivation patterns': 'Complex cultivation patterns', 'Land principally occupied by agriculture, with significant areas of natural vegetation': 'Land principally occupied by agriculture, with significant areas of natural vegetation', 'Agro-forestry areas': 'Agro-forestry areas', 'Broad-leaved forest': 'Broad-leaved forest', 'Coniferous forest': 'Coniferous forest', 'Mixed forest': 'Mixed forest', 'Natural grassland': 'Natural grassland and sparsely vegetated areas', 'Moors and heathland': 'Moors, heathland and sclerophyllous vegetation', 'Sclerophyllous vegetation': 'Moors, heathland and sclerophyllous vegetation', 'Transitional woodland/shrub': 'Transitional woodland, shrub', 'Beaches, dunes, sands': 'Beaches, dunes, sands', 'Bare rock': 'REMOVED', 'Sparsely vegetated areas': 'Natural grassland and sparsely vegetated areas', 'Burnt areas': 'REMOVED', 'Inland marshes': 'Inland wetlands', 'Peatbogs': 'Inland wetlands', 'Salt marshes': 'Coastal wetlands', 'Salines': 'Coastal wetlands', 'Intertidal flats': 'REMOVED', 'Water courses': 'Inland waters', 'Water bodies': 'Inland waters', 'Coastal lagoons': 'Marine waters', 'Estuaries': 'Marine waters', 'Sea and ocean': 'Marine waters'}
+    _19_label_to_index = {'Agro-forestry areas': 0, 'Arable land': 1, 'Beaches, dunes, sands': 2, 'Broad-leaved forest': 3, 'Coastal wetlands': 4, 'Complex cultivation patterns': 5, 'Coniferous forest': 6, 'Industrial or commercial units': 7, 'Inland waters': 8, 'Inland wetlands': 9, 'Land principally occupied by agriculture, with significant areas of natural vegetation': 10, 'Marine waters': 11, 'Mixed forest': 12, 'Moors, heathland and sclerophyllous vegetation': 13, 'Natural grassland and sparsely vegetated areas': 14, 'Pastures': 15, 'Permanent crops': 16, 'Transitional woodland, shrub': 17, 'Urban fabric': 18}
+
+    classes = len(_19_label_to_index)
+    bands = len(band_to_index)
 
     def __init__(self, patch_dir: Path, split):
         self.name = patch_dir.name
@@ -28,7 +32,8 @@ class Patch:
         self.labels = []
 
         for l in meta_json['labels']:
-            self.labels.append(Patch.label_to_index[l])
+            if Patch._43_to_19[l] != 'REMOVED':
+                self.labels.append(Patch._19_label_to_index[Patch._43_to_19[l]])
 
     def __repr__(self):
         plt.imshow(self.data[1:4].permute(1, 2, 0))
