@@ -14,7 +14,7 @@ from utils import LMDB_MAP_SIZE
 
 class Serbia(Dataset):
 
-    size = 128, 128
+    size = 120, 120
     resize = torchvision.transforms.Resize(size, interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
 
     def __init__(self, lmdb_directory:Path, split:str='train'):

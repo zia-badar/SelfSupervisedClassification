@@ -1,18 +1,15 @@
-from cmath import nan
+import re
 from pathlib import Path
 
 import torch
+from torch import Tensor
+from torch import nn
 from torch.utils.data import DataLoader
 from torchvision.models.resnet import resnet50
-from torch import nn
-from torch import Tensor
 from tqdm import tqdm
 
-import utils
 from patch import Patch
 from serbia import Serbia
-import xml.etree.ElementTree as tree
-
 
 class Model(nn.Module):
     def __init__(self):
@@ -27,33 +24,41 @@ class Model(nn.Module):
             if child[0] == 'avgpool':
                 f.append(nn.Flatten())
 
-        f.append(nn.Sigmoid())
-
         self.f = nn.Sequential(*f)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.f(x)
-        x = torch.sigmoid(x)
         return x
-
 
 if __name__ == '__main__':
     batch_size = 128
-    no_workers = 8
-    epochs = 100
+    no_workers = 16
+    epochs = 300
+    result_folder = 'supervised_learning_results'
+    continue_training = True
 
     train_dataset = Serbia(Path('serbia_dataset_lmdb'), split='train')
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=8, shuffle=True, drop_last=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True)
 
     test_dataset = Serbia(Path('serbia_dataset_lmdb'), split='test')
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=8, shuffle=True, drop_last=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True)
 
-    model = Model().cuda()
+    model = Model()
+    model = model.cuda()
+    model = nn.DataParallel(model)
+
+    starting_epoch = 0
+    if continue_training:
+        saved_models = sorted(Path(result_folder).glob('*'), reverse=True)
+        if len(saved_models) > 0:
+            latest_saved_model = saved_models[0]
+            starting_epoch = (int)(re.sub('.*_', '', latest_saved_model.stem))
+            model.load_state_dict(torch.load(latest_saved_model))
 
     optim = torch.optim.Adam(model.parameters())
     loss_func = nn.BCEWithLogitsLoss()
 
-    for epoch in range(1, epochs):
+    for epoch in range(starting_epoch, epochs+1):
 
         bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}')
         model.train()
@@ -64,11 +69,14 @@ if __name__ == '__main__':
             optim.zero_grad()
             loss.backward()
             optim.step()
+            torch.save(model.state_dict(), f'{result_folder}/trained_supervised_model_epoch_{epoch}')
 
-        test_loss = 0
         bar = tqdm(test_dataloader)
         model.eval()
-        for x, l in bar:
+        correct = 0
+        for i, (x, l) in enumerate(bar):
             pred = model(x.cuda())
-            test_loss += loss_func(pred, l.cuda()).item()
-            bar.set_description(f'testing, test loss: {test_loss}')
+            pred = torch.sigmoid(pred)
+            pred = torch.round(pred)
+            correct += torch.sum(torch.all(torch.eq(pred, l.cuda()), dim=1)).item()
+            bar.set_description(f'testing, test accuracy: {correct/((i+1)*batch_size)}')
