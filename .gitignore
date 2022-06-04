@@ -5,4 +5,4 @@ __pycache__/
 DCL/data/
 serbia_dataset.zip
 results/
-supervised_learning_result/*
+supervised_learning_results/*

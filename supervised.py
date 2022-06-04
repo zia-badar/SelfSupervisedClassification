@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.models.resnet import resnet50
+from torchvision.models.resnet import resnet50, resnet101
 from tqdm import tqdm
 
 from patch import Patch
@@ -31,7 +31,7 @@ class Model(nn.Module):
         return x
 
 if __name__ == '__main__':
-    batch_size = 128
+    batch_size = 64
     no_workers = 16
     epochs = 300
     result_folder = 'supervised_learning_results'
@@ -47,12 +47,13 @@ if __name__ == '__main__':
     model = model.cuda()
     model = nn.DataParallel(model)
 
-    starting_epoch = 0
+    starting_epoch = 1
     if continue_training:
-        saved_models = sorted(Path(result_folder).glob('*'), reverse=True)
+        saved_models = [(len(str(path)), str(path)) for path in Path(result_folder).glob('*')]
+        saved_models.sort(reverse=True)
         if len(saved_models) > 0:
-            latest_saved_model = saved_models[0]
-            starting_epoch = (int)(re.sub('.*_', '', latest_saved_model.stem))
+            latest_saved_model = saved_models[0][1]
+            starting_epoch = (int)(re.sub('.*_', '', latest_saved_model))
             model.load_state_dict(torch.load(latest_saved_model))
 
     optim = torch.optim.Adam(model.parameters())
@@ -63,13 +64,14 @@ if __name__ == '__main__':
         bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}')
         model.train()
         for x, l in bar:
+            optim.zero_grad()
             pred = model(x.cuda())
             loss = loss_func(pred, l.cuda())
 
-            optim.zero_grad()
             loss.backward()
             optim.step()
-            torch.save(model.state_dict(), f'{result_folder}/trained_supervised_model_epoch_{epoch}')
+
+        torch.save(model.state_dict(), f'{result_folder}/trained_supervised_model_epoch_{epoch}')
 
         bar = tqdm(test_dataloader)
         model.eval()

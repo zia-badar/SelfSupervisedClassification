@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.data import Dataset
-from torchvision.transforms.functional import hflip
+from torchvision.transforms.functional import hflip, vflip
 
 from patch import Patch
 from utils import LMDB_MAP_SIZE
@@ -43,6 +43,11 @@ class Serbia(Dataset):
 
         labels = torch.zeros(len(Patch._19_label_to_index))
         labels[patch.labels] = 1
+
+        if torch.rand(1).item() > 0.5:
+            processed = hflip(processed)
+        if torch.rand(1).item() > 0.5:
+            processed = vflip(processed)
 
         # return processed, hflip(processed), labels
         return processed, labels
