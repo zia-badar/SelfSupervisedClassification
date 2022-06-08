@@ -3,8 +3,8 @@ import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 from PIL import Image
+from torchvision.transforms import ToTensor
 
 
 class Patch:
@@ -19,14 +19,13 @@ class Patch:
     def __init__(self, patch_dir: Path, split):
         self.name = patch_dir.name
         self.split = split
-        self.data = [None] * len(Patch.band_to_index)
+        self.data = [None] * Patch.bands
 
         for band_path in patch_dir.iterdir():
             if (band_path.suffix == '.tif'):
                 band = re.sub('.*_', '', band_path.stem)
                 if (band not in Patch.band_to_exclude):
-                    image = Image.open(band_path)
-                    self.data[Patch.band_to_index[band]] = np.array(image, dtype=np.uint16)
+                    self.data[Patch.band_to_index[band]] = ToTensor()(Image.open(band_path))
 
         meta_json = json.load(open(str(patch_dir.glob('*.json').__next__())))
         self.labels = []

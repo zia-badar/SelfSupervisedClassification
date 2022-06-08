@@ -1,47 +1,63 @@
 import pickle as pk
+from multiprocessing import Pool
 from pathlib import Path
 
 import lmdb
-import numpy as np
 import torch
 import torchvision
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import hflip, vflip
+from tqdm import tqdm
 
 from patch import Patch
 from utils import LMDB_MAP_SIZE
 
+
+def func_3(args):
+    key, split = args
+    str_key = pk.loads(memoryview(key))
+    split_ = str_key.rsplit('_', 1)[1]
+    return key if split_ == split else None
 
 class Serbia(Dataset):
 
     size = 120, 120
     resize = torchvision.transforms.Resize(size, interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
 
-    def __init__(self, lmdb_directory:Path, split:str='train'):
-        self.split = split
-        self.lmdb_directory = lmdb_directory
+    mean = torch.tensor([0.0067, 0.0095, 0.0092, 0.0147, 0.0274, 0.0317, 0.0339, 0.0346, 0.0242, 0.0153])
+    std = torch.tensor([0.0094, 0.0095, 0.0109, 0.0116, 0.0170, 0.0196, 0.0210, 0.0208, 0.0165, 0.0125])
+    normalize = torchvision.transforms.Normalize(mean, std)
 
-        self.env = lmdb.open(str(self.lmdb_directory), map_size=LMDB_MAP_SIZE, readonly=True, lock=False)
+
+    def __init__(self, lmdb_directory:Path = Path('../bigearth_subset_lmdb'), split:str='train'):
+        self.split = split
+        self.data_keys = []
+
+        self.env = lmdb.open(str(lmdb_directory), map_size=LMDB_MAP_SIZE, readonly=True, lock=False)
 
         with self.env.begin(buffers=True) as txn:
-            self.data_keys = []
-            for _, v in txn.cursor():
-                patch = pk.loads(v)
-                if (patch.split == self.split):
-                    self.data_keys.append(patch.name)
+            with Pool(processes=20) as pool:
+                def gen_wrapper():
+                    for k, _ in txn.cursor():
+                        yield k.tobytes(), split
+
+                for patch_name in pool.imap_unordered(func_3, tqdm(gen_wrapper(), total=txn.stat()['entries']), chunksize=1024):
+                    if patch_name != None:
+                        self.data_keys.append(patch_name)
 
     def __getitem__(self, item):
         with self.env.begin(buffers=True) as txn:
-            patch = pk.loads(txn.get(pk.dumps(self.data_keys[item])))
+            patch = pk.loads(txn.get(memoryview(self.data_keys[item])))
 
-        processed = torch.zeros((len(Patch.band_to_index),) + Serbia.size, dtype=torch.float32)
+        processed = torch.zeros((Patch.bands,) + Serbia.size, dtype=torch.float32)
         for i, bdata in enumerate(patch.data):
-            bdata = torch.from_numpy(bdata.astype(np.int32))
-            bdata = (bdata - torch.min(bdata)) / (torch.max(bdata) - torch.min(bdata))
+            bdata = bdata / (1 << 16)
             bdata = Serbia.resize(bdata.unsqueeze(0)).squeeze(0)
             processed[i] = bdata
 
-        labels = torch.zeros(len(Patch._19_label_to_index))
+        processed = Serbia.normalize(processed)
+
+        labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
 
         if torch.rand(1).item() > 0.5:
@@ -49,7 +65,6 @@ class Serbia(Dataset):
         if torch.rand(1).item() > 0.5:
             processed = vflip(processed)
 
-        # return processed, hflip(processed), labels
         return processed, labels
 
     def __len__(self):
