@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 pred = model(x.cuda(non_blocking=True))
                 pred = torch.sigmoid(pred)
                 pred = torch.round(pred)
-                correct += torch.sum(torch.eq(pred, l.cuda(non_blocking=True)), dim=0).item()
+                correct += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1)).item()
                 bar.set_description(f'train accuracy: {correct/((i+1)*batch_size)}')
 
             bar = tqdm(test_dataloader)
@@ -85,5 +85,5 @@ if __name__ == '__main__':
                 pred = model(x.cuda(non_blocking=True))
                 pred = torch.sigmoid(pred)
                 pred = torch.round(pred)
-                correct += torch.sum(torch.eq(pred, l.cuda(non_blocking=True)), dim=0).item()
+                correct += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1)).item()
                 bar.set_description(f'test accuracy: {correct/((i+1)*batch_size)}')
