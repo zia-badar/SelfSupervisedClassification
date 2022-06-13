@@ -5,9 +5,10 @@ import torch
 from torch import Tensor
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.models import resnet18
+from torchvision.models import resnet18, resnet50
 from tqdm import tqdm
 
+import utils
 from patch import Patch
 from serbia import Serbia
 
@@ -15,9 +16,9 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.f = resnet18(pretrained=True)
+        self.f = resnet50()
         self.f.conv1 = nn.Conv2d(Patch.bands, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.f.fc = nn.Linear(512 * 1, Patch.classes)
+        self.f.fc = nn.Linear(512 * 4, Patch.classes)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.f(x)
@@ -46,21 +47,27 @@ if __name__ == '__main__':
         saved_models.sort(reverse=True)
         if len(saved_models) > 0:
             latest_saved_model = saved_models[0][1]
-            starting_epoch = (int)(re.sub('.*_', '', latest_saved_model))
+            starting_epoch = (int)(re.sub('.*_', '', latest_saved_model)) + 1
             model.load_state_dict(torch.load(latest_saved_model))
 
     optim = torch.optim.Adam(model.parameters())
-    loss_func = nn.BCEWithLogitsLoss()
+    positive_weights, negative_weights, count = utils.calculate_class_weights(train_dataloader)
+    positive_weights = positive_weights.cuda(non_blocking=True)
+    negative_weights = negative_weights.cuda(non_blocking=True)
 
+    last_correct = torch.zeros(Patch.classes).cuda(non_blocking=True)
+    _loss = 0
     for epoch in range(starting_epoch, epochs+1):
 
-        bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}')
+        bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}, last loss = {_loss}')
         model.train()
         for x, l in bar:
             optim.zero_grad()
             x = x.cuda(non_blocking=True)
+            l = l.cuda(non_blocking=True)
             pred = model(x)
-            loss = loss_func(pred, l.cuda(non_blocking=True))
+            t = torch.clamp(-pred, max=0)
+            loss = -torch.mean((-(t+pred) + torch.log(torch.exp(t+pred) + torch.exp(t)))*(-l*positive_weights[None, :] - negative_weights[None, :] + l*negative_weights[None, :]) - negative_weights[None, :]*pred*(1-l))
 
             loss.backward()
             optim.step()
@@ -70,20 +77,16 @@ if __name__ == '__main__':
         if epoch % 5 == 0:
             model.eval()
 
-            bar = tqdm(train_dataloader)
-            correct = 0
-            for i, (x, l) in enumerate(bar):
-                pred = model(x.cuda(non_blocking=True))
-                pred = torch.sigmoid(pred)
-                pred = torch.round(pred)
-                correct += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1)).item()
-                bar.set_description(f'train accuracy: {correct/((i+1)*batch_size)}')
-
             bar = tqdm(test_dataloader)
-            correct = 0
+            correct = torch.zeros(Patch.classes).cuda(non_blocking=True)
+            correct_all = 0
             for i, (x, l) in enumerate(bar):
                 pred = model(x.cuda(non_blocking=True))
                 pred = torch.sigmoid(pred)
                 pred = torch.round(pred)
-                correct += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1)).item()
-                bar.set_description(f'test accuracy: {correct/((i+1)*batch_size)}')
+                correct += torch.sum(torch.eq(pred, l.cuda(non_blocking=True)), dim=0)
+                correct_all += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1))
+
+            print(f'test accuracy: {correct / (len(bar) * batch_size)}')
+            print(f'test accuracy: {correct_all / (len(bar) * batch_size)}')
+            print(f'count: {count}')

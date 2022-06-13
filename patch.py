@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+import torch
 
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -35,6 +36,8 @@ class Patch:
                 self.labels.append(Patch._19_label_to_index[Patch._43_to_19[l]])
 
     def __repr__(self):
-        plt.imshow(self.data[1:4].permute(1, 2, 0))
+        img = torch.cat(self.data[:3])
+        img = img.permute(1, 2, 0)
+        plt.imshow(img)
         plt.show()
         return ""

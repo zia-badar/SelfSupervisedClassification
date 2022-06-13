@@ -24,6 +24,7 @@ def generate_subset_from_bigearth(big_earth_dataset_path = Path('/BigEarthNet-v1
     gdf = gp.read_parquet(str(big_eath_meta_parquet_path))
     gdf = gdf[gdf.snow != True]
     gdf = gdf[gdf.cloud_or_shadow != True]
+    gdf = gdf[gdf.country == 'Serbia']
 
     with Pool(processes=20) as pool:
         def gen_wrapper():
@@ -79,3 +80,23 @@ def compute_mean_and_std_from_dataset(dataloader: DataLoader):
     std = torch.sqrt(sum / (n * Serbia.size[0] * Serbia.size[1]))
 
     return mean, std
+
+def calculate_class_weights(dataloader: DataLoader):
+
+    positive = torch.zeros(Patch.classes)
+    negative = torch.zeros(Patch.classes)
+    count = torch.zeros(Patch.classes)
+
+    for _, l in dataloader:
+        positive += torch.sum(l == 1, dim=0)
+        negative += torch.sum(l == 0, dim=0)
+        count += torch.sum(l, dim=0)
+
+    n = positive[0] + negative[0]
+    positive = n / (2*positive)
+    negative = n / (2*negative)
+
+    positive = torch.nan_to_num(positive, posinf=0)
+    negative = torch.nan_to_num(negative, posinf=0)
+
+    return positive, negative, count
