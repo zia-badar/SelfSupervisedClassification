@@ -5,10 +5,12 @@ import torch
 from torch import Tensor
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.models import resnet18, resnet50
+from torchvision.models import resnet50
 from tqdm import tqdm
 
 import utils
+from evaluator import Evaluator
+from metrics import Accuracy, Loss
 from patch import Patch
 from serbia import Serbia
 
@@ -28,11 +30,15 @@ if __name__ == '__main__':
     batch_size = 128
     no_workers = 16
     epochs = 300
-    result_folder = 'supervised_learning_results'
+    results_directory = Path('results/supervised')
+    models_directory = results_directory / 'models'
     continue_training = True
 
     train_dataset = Serbia(split='train')
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
+
+    validation_dataset = Serbia(split='validation')
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     test_dataset = Serbia(split='test')
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
@@ -43,7 +49,7 @@ if __name__ == '__main__':
 
     starting_epoch = 1
     if continue_training:
-        saved_models = [(len(str(path)), str(path)) for path in Path(result_folder).glob('*')]
+        saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
         saved_models.sort(reverse=True)
         if len(saved_models) > 0:
             latest_saved_model = saved_models[0][1]
@@ -55,11 +61,16 @@ if __name__ == '__main__':
     positive_weights = positive_weights.cuda(non_blocking=True)
     negative_weights = negative_weights.cuda(non_blocking=True)
 
-    last_correct = torch.zeros(Patch.classes).cuda(non_blocking=True)
-    _loss = 0
+    def loss_func(pred, y):
+        t = torch.clamp(-pred, max=0)
+        return -torch.mean((-(t + pred) + torch.log(torch.exp(t + pred) + torch.exp(t))) * (
+                -y * positive_weights[None, :] - negative_weights[None, :] + y * negative_weights[None,
+                                                                                 :]) - negative_weights[None,
+                                                                                       :] * pred * (1 - y))
+
     for epoch in range(starting_epoch, epochs+1):
 
-        bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}, last loss = {_loss}')
+        bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}')
         model.train()
         for x, l in bar:
             optim.zero_grad()
@@ -72,21 +83,11 @@ if __name__ == '__main__':
             loss.backward()
             optim.step()
 
-        torch.save(model.state_dict(), f'{result_folder}/trained_supervised_model_epoch_{epoch}')
+        torch.save(model.state_dict(), str(models_directory / f'trained_supervised_model_epoch_{epoch}'))
 
-        if epoch % 5 == 0:
-            model.eval()
-
-            bar = tqdm(test_dataloader)
-            correct = torch.zeros(Patch.classes).cuda(non_blocking=True)
-            correct_all = 0
-            for i, (x, l) in enumerate(bar):
-                pred = model(x.cuda(non_blocking=True))
-                pred = torch.sigmoid(pred)
-                pred = torch.round(pred)
-                correct += torch.sum(torch.eq(pred, l.cuda(non_blocking=True)), dim=0)
-                correct_all += torch.sum(torch.all(torch.eq(pred, l.cuda(non_blocking=True)), dim=1))
-
-            print(f'test accuracy: {correct / (len(bar) * batch_size)}')
-            print(f'test accuracy: {correct_all / (len(bar) * batch_size)}')
-            print(f'count: {count}')
+    evaluator = Evaluator(results_directory)
+    dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
+    metrics = [Accuracy().cuda(), Loss(loss_func).cuda()]
+    evaluator.evaluate(dataloaders, metrics, Model)
+    evaluator.save()
+    evaluator.plot()
