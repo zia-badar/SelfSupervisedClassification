@@ -13,6 +13,7 @@ from evaluator import Evaluator
 from metrics import Accuracy, Loss
 from patch import Patch
 from serbia import Serbia
+from loss import DB_Loss
 
 class Model(nn.Module):
     def __init__(self):
@@ -27,9 +28,9 @@ class Model(nn.Module):
         return x
 
 if __name__ == '__main__':
-    batch_size = 128
+    batch_size = 256
     no_workers = 16
-    epochs = 300
+    epochs = 150
     results_directory = Path('results/supervised')
     models_directory = results_directory / 'models'
     continue_training = True
@@ -61,12 +62,8 @@ if __name__ == '__main__':
     positive_weights = positive_weights.cuda(non_blocking=True)
     negative_weights = negative_weights.cuda(non_blocking=True)
 
-    def loss_func(pred, y):
-        t = torch.clamp(-pred, max=0)
-        return -torch.mean((-(t + pred) + torch.log(torch.exp(t + pred) + torch.exp(t))) * (
-                -y * positive_weights[None, :] - negative_weights[None, :] + y * negative_weights[None,
-                                                                                 :]) - negative_weights[None,
-                                                                                       :] * pred * (1 - y))
+    # loss_func = DB_Loss(train_dataloader)
+    loss_func = torch.nn.BCEWithLogitsLoss()
 
     for epoch in range(starting_epoch, epochs+1):
 
@@ -77,8 +74,7 @@ if __name__ == '__main__':
             x = x.cuda(non_blocking=True)
             l = l.cuda(non_blocking=True)
             pred = model(x)
-            t = torch.clamp(-pred, max=0)
-            loss = -torch.mean((-(t+pred) + torch.log(torch.exp(t+pred) + torch.exp(t)))*(-l*positive_weights[None, :] - negative_weights[None, :] + l*negative_weights[None, :]) - negative_weights[None, :]*pred*(1-l))
+            loss = loss_func(pred, l)
 
             loss.backward()
             optim.step()
@@ -90,4 +86,5 @@ if __name__ == '__main__':
     metrics = [Accuracy().cuda(), Loss(loss_func).cuda()]
     evaluator.evaluate(dataloaders, metrics, Model)
     evaluator.save()
+    # evaluator = evaluator.load(Path('results/supervised/evaluations/evaluation_1'))
     evaluator.plot()

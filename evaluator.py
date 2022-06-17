@@ -15,7 +15,7 @@ class Evaluator():
     def __init__(self, results_directory):
         self.results_directory = results_directory
 
-    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], epoch_spacing = 100):
+    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], epoch_spacing = 5):
         self.dataloader_names = list(dataloaders.keys())
         dataloaders = dataloaders.values()
         self.metric_names = [m.name for m in metrics]
@@ -77,8 +77,13 @@ class Evaluator():
         with open(str(evaluation_path), 'rb') as fin:
             return pk.load(fin)
 
+    def load(self, path:Path):
+        with open(str(path), 'rb') as fin:
+            return pk.load(fin)
+
     def plot(self):
         for metric_name, metric_evaluation in zip(self.metric_names, self.metrics_evaluation):
+            pyplot.figure(figsize=(30, 10))
             pyplot.title(f'{metric_name}')
             for dl_name, dl_metric_evaluation in zip(self.dataloader_names, metric_evaluation):
                 pyplot.plot(self.selected_epochs, dl_metric_evaluation, label=f'{dl_name}')
