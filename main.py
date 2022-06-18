@@ -6,10 +6,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from DCL.model import Model
+import DCL.model
 from serbia import Serbia
-from utils import generate_serbia_from_bigearth
-
 
 def get_negative_mask(batch_size):
     negative_mask = torch.ones((batch_size, 2 * batch_size), dtype=bool)
@@ -64,15 +62,31 @@ def train(net, data_loader, train_optimizer, temperature, debiased, tau_plus):
 
 if __name__ == '__main__':
 
-	batch_size = 8
-	epochs = 100
+    batch_size = 8
+    no_workers = 16
+    epochs = 200
+    results_directory = Path('results/unsupervised')
+    models_directory = results_directory / 'models'
+    continue_training = True
 
-	train_dl = DataLoader(Serbia(Path('serbia_dataset_lmdb'), split='train'), batch_size=batch_size, num_workers=16, shuffle=True, drop_last=True)
+    train_dataset = Serbia(split='train')
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-	model = Model(128).cuda()
-	model = nn.DataParallel(model)
-	optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+    model = DCL.model.Model(128).cuda()
+    model = nn.DataParallel(model)
 
-	for epoch in range(1, epochs + 1):
-			train(model, train_dl, optimizer, .5, True, .1)
-			torch.save(model.state_dict(), f'results/model_{epoch}.pth')
+    starting_epoch = 1
+    if continue_training:
+        saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
+        saved_models.sort(reverse=True)
+        if len(saved_models) > 0:
+            latest_saved_model = saved_models[0][1]
+            starting_epoch = (int)(latest_saved_model.rsplit('_', 1)[1]) + 1
+            model.load_state_dict(torch.load(latest_saved_model))
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+
+    for epoch in range(starting_epoch, epochs + 1):
+        train(model, train_dataloader, optimizer, .5, True, .1)
+        if epoch % 5 == 0:
+            torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))

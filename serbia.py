@@ -65,7 +65,17 @@ class Serbia(Dataset):
         if torch.rand(1).item() > 0.5:
             processed = vflip(processed)
 
-        return processed, labels
+        aug = processed
+        if torch.rand(1).item() > 0.5:
+            aug = hflip(aug)
+            if torch.rand(1).item() > 0.5:
+                aug = vflip(aug)
+        else:
+            aug = vflip(aug)
+            if torch.rand(1).item() > 0.5:
+                aug = hflip(aug)
+
+        return processed, aug, labels
 
     def __len__(self):
         return len(self.data_keys)

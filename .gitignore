@@ -3,5 +3,6 @@ serbia_dataset/
 .idea/
 __pycache__/
 DCL/data/
-results/
-supervised_learning_results/*
+results/supervised/models/*
+results/supervised/models_*
+results/unsupervised/models/*

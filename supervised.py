@@ -14,18 +14,7 @@ from metrics import Accuracy, Loss
 from patch import Patch
 from serbia import Serbia
 from loss import DB_Loss
-
-class Model(nn.Module):
-    def __init__(self):
-        super(Model, self).__init__()
-
-        self.f = resnet50()
-        self.f.conv1 = nn.Conv2d(Patch.bands, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.f.fc = nn.Linear(512 * 4, Patch.classes)
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.f(x)
-        return x
+from model import Model
 
 if __name__ == '__main__':
     batch_size = 256
