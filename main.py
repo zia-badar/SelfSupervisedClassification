@@ -3,13 +3,14 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
+from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import DCL.model
 from dcl_loss import DCL_loss
 from evaluator import Evaluator
-from metrics import Loss
+from metrics import Loss, Accuracy
 from serbia import Serbia
 
 def train(net, data_loader, train_optimizer, dcl_loss):
@@ -48,28 +49,51 @@ if __name__ == '__main__':
     model = DCL.model.Model(128).cuda()
     model = nn.DataParallel(model)
 
-    starting_epoch = 1
-    if continue_training:
-        saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
-        saved_models.sort(reverse=True)
-        if len(saved_models) > 0:
-            latest_saved_model = saved_models[0][1]
-            starting_epoch = (int)(latest_saved_model.rsplit('_', 1)[1]) + 1
-            model.load_state_dict(torch.load(latest_saved_model))
+    model.load_state_dict(torch.load(str(results_directory / 'models' / 'model_60')))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    loss = DCL_loss(.5, True, .1, batch_size)
+    # starting_epoch = 1
+    # if continue_training:
+    #     saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
+    #     saved_models.sort(reverse=True)
+    #     if len(saved_models) > 0:
+    #         latest_saved_model = saved_models[0][1]
+    #         starting_epoch = (int)(latest_saved_model.rsplit('_', 1)[1]) + 1
+    #         model.load_state_dict(torch.load(latest_saved_model))
 
-    for epoch in range(starting_epoch, epochs + 1):
-        train(model, train_dataloader, optimizer, loss)
-        if epoch % 5 == 0:
-            torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+    # loss = DCL_loss(.5, True, .1, batch_size)
 
-    evaluator = Evaluator(results_directory)
-    dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
-    metrics = [Loss(loss).cuda()]
-    evaluator.evaluate(dataloaders, metrics, DCL.model.Model)
-    evaluator.save()
+    # for epoch in range(starting_epoch, epochs + 1):
+    #     train(model, train_dataloader, optimizer, loss)
+    #     if epoch % 5 == 0:
+    #         torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
+
+    # evaluator = Evaluator(results_directory)
+    # dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
+    # metrics = [Loss(loss).cuda()]
+    # evaluator.evaluate(dataloaders, metrics, DCL.model.Model)
+    # evaluator.save()
     # evaluator = evaluator.load(Path(results_directory / 'evaluations' / 'evaluation_1'))
     # evaluator.plot()
 
+    model.eval()
+    m = torch.nn.Linear(128, 19).cuda()
+    optimizer = torch.optim.Adam(m.parameters())
+    for e in tqdm(range(1, 100)):
+        for x, aug, l in tqdm(train_dataloader, position=0, desc='models'):
+            optimizer.zero_grad()
+            _, out = model(x)
+            out = out.cuda()
+            pred = m(out)
+            loss = torch.nn.BCEWithLogitsLoss()(pred, l.cuda())
+            loss.backward()
+            optimizer.step()
+
+        metric = Accuracy().cuda()
+        metric.reset()
+        for x, aug, l in tqdm(test_dataloader, position=1, leave=False, desc='dataloaders'):
+            _, out = model(x)
+            out = out.cuda()
+            pred = m(out)
+            metric(pred, l)
+        print(f'accuracy: {metric.compute()}')
