@@ -15,7 +15,7 @@ class Evaluator():
     def __init__(self, results_directory):
         self.results_directory = results_directory
 
-    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], epoch_spacing = 5):
+    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], epoch_spacing = 1):
         self.dataloader_names = list(dataloaders.keys())
         dataloaders = dataloaders.values()
         self.metric_names = [m.name for m in metrics]
@@ -24,7 +24,6 @@ class Evaluator():
         models.sort()
         models = list(map(lambda t: t[1], models))
         self.selected_epochs = [i for i in range(epoch_spacing, len(models) + 1, epoch_spacing)]
-        self.selected_epochs.insert(0, 1)
         models = [models[i - 1] for i in self.selected_epochs]
 
         self.metrics_evaluation = [[[0 for _ in range(len(models))] for _ in range(len(dataloaders))] for _ in range(len(metrics))]
@@ -40,12 +39,12 @@ class Evaluator():
                 for metric in metrics:
                     metric.reset()
 
-                for x, l in dataloader:
+                for x, aug, l in dataloader:
                     x = x.cuda(non_blocking=True)
                     l = l.cuda(non_blocking=True)
 
                     for metric in metrics:
-                        metric(model(x), l)
+                        metric(model, x, aug, l)
 
                 for metric, metric_evaluation in zip(metrics, self.metrics_evaluation):
                     metric_evaluation[j][i] = metric.compute()
