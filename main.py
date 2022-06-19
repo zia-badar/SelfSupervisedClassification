@@ -18,7 +18,7 @@ def train(net, data_loader, train_optimizer, dcl_loss):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
-        loss = dcl_loss(pos_1, pos_2)
+        loss = dcl_loss(net, pos_1, pos_2, target)
         train_optimizer.zero_grad()
         loss.backward()
         train_optimizer.step()
@@ -51,8 +51,6 @@ if __name__ == '__main__':
 
     model = DCL.model.Model(128).cuda()
     model = nn.DataParallel(model)
-
-    model.load_state_dict(torch.load(str(results_directory / 'models' / 'model_60')))
 
     starting_epoch = 1
     if continue_training:
