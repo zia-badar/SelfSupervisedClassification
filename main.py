@@ -77,14 +77,15 @@ if __name__ == '__main__':
     # evaluator.plot()
 
     model.eval()
-    m = torch.nn.Linear(128, 19).cuda()
+    m = torch.nn.Sequential(torch.nn.Linear(2048, 2048), torch.nn.Linear(2048, 19))
+    m = m.cuda()
     optimizer = torch.optim.Adam(m.parameters())
     for e in tqdm(range(1, 100)):
         for x, aug, l in tqdm(train_dataloader, position=0, desc='models'):
             optimizer.zero_grad()
-            _, out = model(x)
-            out = out.cuda()
-            pred = m(out)
+            feat, _ = model(x)
+            feat = feat.cuda()
+            pred = m(feat)
             loss = torch.nn.BCEWithLogitsLoss()(pred, l.cuda())
             loss.backward()
             optimizer.step()
@@ -92,8 +93,8 @@ if __name__ == '__main__':
         metric = Accuracy().cuda()
         metric.reset()
         for x, aug, l in tqdm(test_dataloader, position=1, leave=False, desc='dataloaders'):
-            _, out = model(x)
-            out = out.cuda()
-            pred = m(out)
+            feat, _ = model(x)
+            feat = feat.cuda()
+            pred = m(feat)
             metric(pred, l)
         print(f'accuracy: {metric.compute()}')
