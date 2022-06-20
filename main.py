@@ -33,7 +33,7 @@ def train(net, data_loader, train_optimizer, dcl_loss):
 
 if __name__ == '__main__':
 
-    batch_size = 32
+    batch_size = 104
     no_workers = 16
     epochs = 200
     results_directory = Path('results/unsupervised')
@@ -49,25 +49,25 @@ if __name__ == '__main__':
     validation_dataset = Serbia(split='validation')
     validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-    model = DCL.model.Model(128).cuda()
-    model = nn.DataParallel(model)
+    #model = DCL.model.Model(128).cuda()
+    #model = nn.DataParallel(model)
 
-    starting_epoch = 1
-    if continue_training:
-        saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
-        saved_models.sort(reverse=True)
-        if len(saved_models) > 0:
-            latest_saved_model = saved_models[0][1]
-            starting_epoch = (int)(latest_saved_model.rsplit('_', 1)[1]) + 1
-            model.load_state_dict(torch.load(latest_saved_model))
+    #starting_epoch = 1
+    #if continue_training:
+    #    saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
+    #    saved_models.sort(reverse=True)
+    #    if len(saved_models) > 0:
+    #        latest_saved_model = saved_models[0][1]
+    #        starting_epoch = (int)(latest_saved_model.rsplit('_', 1)[1]) + 1
+    #        model.load_state_dict(torch.load(latest_saved_model))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    loss = DCL_loss(.5, True, 1./Patch.classes, batch_size)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+    loss = DCL_loss(.5, True, 0.01, batch_size)
 
-    for epoch in range(starting_epoch, epochs + 1):
-        train(model, train_dataloader, optimizer, loss)
-        if epoch % 5 == 0:
-            torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
+    #for epoch in range(starting_epoch, epochs + 1):
+    #    train(model, train_dataloader, optimizer, loss)
+    #    if epoch % 5 == 0:
+    #        torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
 
     evaluator = Evaluator(results_directory)
     dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
