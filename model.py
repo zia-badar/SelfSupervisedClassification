@@ -1,3 +1,4 @@
+import torch.nn
 from torch import nn, Tensor
 from torchvision.models import resnet50
 

@@ -64,6 +64,25 @@ def train(net, data_loader, train_optimizer, temperature, debiased, tau_plus):
 
     return total_loss / total_num
 
+def knn(train, test):
+    train_x, train_y = train
+    test_x, test_y = test
+
+    _c = 1
+    _cn = 10
+    weights = torch.mm(test_x, train_x.t())                 # |test| x |train|
+    kweights, k_train_indices = torch.topk(weights, k=200, dim=-1)     # |test| x k
+    kweights = (kweights / temperature).exp()
+    klabels = train_y[k_train_indices, :]        # |test| x k x c
+    klabels = torch.nn.functional.one_hot(klabels.long(), num_classes=_cn) # |test| x k x c x _cn
+    voting = kweights.unsqueeze(-1).unsqueeze(-1) * klabels
+    voting = torch.sum(voting, dim=1)
+    voting = torch.argsort(voting, dim=-1, descending=True)
+
+    top1 = torch.sum(torch.any(voting[:, :, :1] == test_y.unsqueeze(-1), dim=-1), dim=0)
+    top5 = torch.sum(torch.any(voting[:, :, :5] == test_y.unsqueeze(-1), dim=-1), dim=0)
+    return top1, top5
+
 
 # test for one epoch, use weighted knn to find the most similar images' label to assign the test image
 def test(net, memory_data_loader, test_data_loader):
@@ -83,6 +102,7 @@ def test(net, memory_data_loader, test_data_loader):
         for data, _, target in test_bar:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             feature, out = net(data)
+
 
             total_num += data.size(0)
             # compute cos similarity between each feature vector and feature bank ---> [B, N]
@@ -105,6 +125,11 @@ def test(net, memory_data_loader, test_data_loader):
             total_top5 += torch.sum((pred_labels[:, :5] == target.unsqueeze(dim=-1)).any(dim=-1).float()).item()
             test_bar.set_description('KNN Test Epoch: [{}/{}] Acc@1:{:.2f}% Acc@5:{:.2f}%'
                                      .format(epoch, epochs, total_top1 / total_num * 100, total_top5 / total_num * 100))
+
+            # a = torch.sum((pred_labels[:, :1] == target.unsqueeze(dim=-1)).any(dim=-1).float()).item()
+            # b = torch.sum((pred_labels[:, :5] == target.unsqueeze(dim=-1)).any(dim=-1).float()).item()
+            # d = knn((feature_bank.t(), feature_labels.unsqueeze(-1)), (feature, target.unsqueeze(-1)))
+
 
     return total_top1 / total_num * 100, total_top5 / total_num * 100
 

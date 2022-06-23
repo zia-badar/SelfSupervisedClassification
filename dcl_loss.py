@@ -1,6 +1,9 @@
+from typing import Type
+
 import numpy as np
 import torch
 
+from patch import Patch
 
 
 class DCL_loss():
@@ -19,7 +22,9 @@ class DCL_loss():
         negative_mask = torch.cat((negative_mask, negative_mask), 0)
         return negative_mask
 
-    def __call__(self, net, pos_1, pos_2, l):
+    def __call__(self, model, batch):
+        net = model
+        pos_1, pos_2, l = batch
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
         feature_1, out_1 = net(pos_1)
         feature_2, out_2 = net(pos_2)
@@ -47,3 +52,33 @@ class DCL_loss():
         loss = (- torch.log(pos / (pos + Ng) )).mean()
 
         return loss
+
+class DCL_classifier():
+    def __init__(self, dcl_model: Type[torch.nn.Module], train, train_subset_ratio=0.5):
+        self.dcl_model = dcl_model
+        self.train_x, self.train_y = train
+        self.train_subset_ratio = train_subset_ratio
+
+    def w_knn(self, test, temperature=0.5, k=200):
+        train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
+        train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
+        test_x, test_y = test
+
+        _c = Patch.classes
+        _cn = 2
+        weights = torch.mm(test_x, train_x.t())  # |test| x |train|
+        kweights, k_train_indices = torch.topk(weights, k=2, dim=-1)  # |test| x k
+        kweights = (kweights / temperature).exp()
+        klabels = train_y[k_train_indices, :]  # |test| x k x c
+        klabels = torch.nn.functional.one_hot(klabels.long(), num_classes=_cn)  # |test| x k x c x _cn
+        voting = kweights.unsqueeze(-1).unsqueeze(-1) * klabels
+        voting = torch.sum(voting, dim=1)
+        voting = torch.argsort(voting, dim=-1, descending=True)
+
+        return voting[:, :, 0]
+
+    def __call__(self, x):
+        x = x.cuda(non_blocking=True)
+        dcl_features, _ = self.dcl_model(x)
+        prediction = self.w_knn((dcl_features, None))
+        return prediction
