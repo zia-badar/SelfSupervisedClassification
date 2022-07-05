@@ -32,7 +32,7 @@ def train(net, data_loader, train_optimizer, dcl_loss):
 if __name__ == '__main__':
 
     batch_size = 32
-    no_workers = 16       # dont use no. of workeer for some reason, classification accuracy changes, cause is not yet found
+    no_workers = 16
     epochs = 60
     results_directory = Path('results/unsupervised')
     models_directory = results_directory / 'models'

@@ -58,37 +58,19 @@ class Serbia(Dataset):
 
         processed = Serbia.normalize(processed)
 
-        # x = torch.empty((8,) + processed.shape)
-        #
-        # x[0] = processed
-        # for i, angle in enumerate(range(90, 270 + 1, 90)):
-        #     x[1 + i] = torchvision.transforms.functional.rotate(processed, angle)
-        # x[4] = hflip(processed)
-        # for i, angle in enumerate(range(90, 270 + 1, 90)):
-        #     x[5 + i] = torchvision.transforms.functional.rotate(x[4], angle)
+        x = torch.empty((8,) + processed.shape)
+
+        x[0] = processed
+        for i, angle in enumerate(range(90, 270 + 1, 90)):
+            x[1 + i] = torchvision.transforms.functional.rotate(processed, angle)
+        x[4] = hflip(processed)
+        for i, angle in enumerate(range(90, 270 + 1, 90)):
+            x[5 + i] = torchvision.transforms.functional.rotate(x[4], angle)
 
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
 
-        # return x[:2], labels
-
-        if torch.rand(1).item() > 0.5:
-            processed = hflip(processed)
-        if torch.rand(1).item() > 0.5:
-            processed = vflip(processed)
-
-        aug = processed
-        if torch.rand(1).item() > 0.5:
-            aug = hflip(aug)
-            if torch.rand(1).item() > 0.5:
-                aug = vflip(aug)
-        else:
-            aug = vflip(aug)
-            if torch.rand(1).item() > 0.5:
-                aug = hflip(aug)
-
-        # return processed, aug, labels
-        return torch.vstack((processed[None], aug[None])), labels
+        return x, labels
 
     def __len__(self):
         return len(self.data_keys)
