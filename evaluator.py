@@ -51,7 +51,8 @@ class Evaluator():
                         for metric in metrics:
                             metric.reset()
 
-                        for x, _, l in tqdm(dataloader, position=3, leave=False, desc=f'{self.dataloader_names[k]}'):
+                        for x, l in tqdm(dataloader, position=3, leave=False, desc=f'{self.dataloader_names[k]}'):
+                            x = x[:, 0]
 
                             for metric in metrics:
                                 metric.update(model(x), l)
@@ -100,3 +101,8 @@ class Evaluator():
             pyplot.xticks(self.selected_epochs if len(self.selected_epochs) > 1 else self.selected_percentage)
             pyplot.legend()
             pyplot.show()
+
+    def __repr__(self):
+        for metric_name, metric_evaluation in zip(self.metric_names, self.metrics_evaluation):
+            for dl_name, dl_metric_evaluation in zip(self.dataloader_names, metric_evaluation):
+                print(f'metric: {metric_name}, dataloader: {dl_name}, value: {dl_metric_evaluation}')

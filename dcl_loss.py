@@ -23,33 +23,57 @@ class DCL_loss():
         return negative_mask
 
     def __call__(self, model, batch):
-        net = model
-        pos_1, pos_2, l = batch
-        pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
-        feature_1, out_1 = net(pos_1)
-        feature_2, out_2 = net(pos_2)
+        # net = model
+        # pos_1, pos_2, l = batch
+        # pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
+        # feature_1, out_1 = net(pos_1)
+        # feature_2, out_2 = net(pos_2)
+        #
+        # # neg score
+        # out = torch.cat([out_1, out_2], dim=0)
+        # neg = torch.exp(torch.mm(out, out.t().contiguous()) / self.temperature)
+        # mask = DCL_loss.get_negative_mask(self.batch_size).cuda()
+        # neg = neg.masked_select(mask).view(2 * self.batch_size, -1)
+        #
+        # # pos score
+        # pos = torch.exp(torch.sum(out_1 * out_2, dim=-1) / self.temperature)
+        # pos = torch.cat([pos, pos], dim=0)
+        #
+        # # estimator g()
+        # if self.debiased:
+        #     N = self.batch_size * 2 - 2
+        #     Ng = (-self.tau_plus * N * pos + neg.sum(dim = -1)) / (1 - self.tau_plus)
+        #     # constrain (optional)
+        #     Ng = torch.clamp(Ng, min = N * np.e**(-1 / self.temperature))
+        # else:
+        #     Ng = neg.sum(dim=-1)
+        #
+        # # contrastive loss
+        # loss = (- torch.log(pos / (pos + Ng) )).mean()
+        #
+        # return loss
 
-        # neg score
-        out = torch.cat([out_1, out_2], dim=0)
-        neg = torch.exp(torch.mm(out, out.t().contiguous()) / self.temperature)
-        mask = DCL_loss.get_negative_mask(self.batch_size).cuda()
-        neg = neg.masked_select(mask).view(2 * self.batch_size, -1)
+        x, _ = batch
+        batch, aug = x.shape[:2]
+        x = x.view((batch*aug,) + x.shape[2:])
+        _, x = model(x)    # (batch*aug) x dim
+        f = torch.exp((x @ x.t())/self.temperature).view(batch, aug, batch, aug)      # batch x aug x batch x aug
+        N = (batch-1) * aug
+        f_x_u_filter = torch.ones((batch, aug, batch, aug), dtype=torch.bool).cuda()
+        for i in range(batch):
+            f_x_u_filter[i, :, i, :] = 0
+        f_x_u = torch.masked_select(f, f_x_u_filter).view(batch, aug, batch-1, aug)
+        M = aug - 1
+        f_x_v_filter = torch.logical_not(f_x_u_filter)
+        for i in range(aug):
+            f_x_v_filter[:, i, :, i] = 0
+        f_x_v = torch.masked_select(f, f_x_v_filter).view(batch, aug, aug-1)
+        f_x_v_p = f_x_v
 
-        # pos score
-        pos = torch.exp(torch.sum(out_1 * out_2, dim=-1) / self.temperature)
-        pos = torch.cat([pos, pos], dim=0)
+        m = N*torch.exp(torch.tensor([-1/self.temperature])).cuda()
+        Ng = torch.clip((1/(1-self.tau_plus)) * (f_x_u.view(batch, aug, -1).sum(-1) - ((N*self.tau_plus)/M)*f_x_v.sum(-1) ), min=m)[:, :, None]    # batch x aug x 1
 
-        # estimator g()
-        if self.debiased:
-            N = self.batch_size * 2 - 2
-            Ng = (-self.tau_plus * N * pos + neg.sum(dim = -1)) / (1 - self.tau_plus)
-            # constrain (optional)
-            Ng = torch.clamp(Ng, min = N * np.e**(-1 / self.temperature))
-        else:
-            Ng = neg.sum(dim=-1)
-
-        # contrastive loss
-        loss = (- torch.log(pos / (pos + Ng) )).mean()
+        loss = torch.mean(-torch.log(f_x_v_p/(f_x_v_p + Ng)))
 
         return loss
 

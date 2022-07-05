@@ -35,9 +35,8 @@ class Patch:
             if Patch._43_to_19[l] != 'REMOVED':
                 self.labels.append(Patch._19_label_to_index[Patch._43_to_19[l]])
 
-    def __repr__(self):
+    def show(self):
         img = torch.cat(self.data[:3])
         img = img.permute(1, 2, 0)
         plt.imshow(img)
         plt.show()
-        return ""

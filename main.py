@@ -15,8 +15,8 @@ from serbia import Serbia
 def train(net, data_loader, train_optimizer, dcl_loss):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
-    for pos_1, pos_2, target in train_bar:
-        loss = dcl_loss(net, pos_1, pos_2, target)
+    for batch in train_bar:
+        loss = dcl_loss(net, batch)
         train_optimizer.zero_grad()
         loss.backward()
         train_optimizer.step()
@@ -67,25 +67,28 @@ if __name__ == '__main__':
        if epoch % 5 == 0:
             torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
 
-    train_x = []
-    train_y = []
-    with torch.no_grad():
-        for x, _, l in tqdm(train_dataloader):
-            f, _ = model(x)
-            train_x.append(f)
-            train_y.append(l)
+            train_x = []
+            train_y = []
+            with torch.no_grad():
+                for x, l in tqdm(train_dataloader):
+                    x = x[:, 0]
+                    f, _ = model(x)
+                    train_x.append(f)
+                    train_y.append(l)
 
-    train_x = torch.cat(train_x, dim=0)
-    train_y = torch.cat(train_y, dim=0).cuda()
+            train_x = torch.cat(train_x, dim=0)
+            train_y = torch.cat(train_y, dim=0).cuda()
 
 
-    evaluator = Evaluator(results_directory)
-    dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
-    metrics = [Accuracy().cuda(), CustomAccuracy().cuda()]
-    dcl_classifier = DCL_classifier(None, (train_x, train_y))
-    def model_wrapper(m):
-        dcl_classifier.dcl_model = m
-        return dcl_classifier
-    evaluator.evaluate(dataloaders, metrics, DCL.model.Model, model_wrapper, percentage_diff=0.1, max_percentage=0.5)
-    evaluator.save()
-    evaluator.plot()
+            evaluator = Evaluator(results_directory)
+            dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
+            metrics = [Accuracy().cuda(), CustomAccuracy().cuda()]
+            dcl_classifier = DCL_classifier(None, (train_x, train_y))
+            def model_wrapper(m):
+                dcl_classifier.dcl_model = m
+                return dcl_classifier
+            evaluator.evaluate(dataloaders, metrics, DCL.model.Model, model_wrapper, percentage_diff=0.1, max_percentage=0.5)
+            print(evaluator)
+
+    # evaluator.save()
+    # evaluator.plot()
