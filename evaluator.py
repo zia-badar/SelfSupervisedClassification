@@ -24,6 +24,7 @@ class Evaluator():
         models = list(map(lambda path: (len(str(path)), str(path)), list((self.results_directory / 'models').glob('*'))))
         models.sort()
         models = list(map(lambda t: t[1], models))
+        models = models[-1:]
         self.selected_epochs = [i for i in range(epoch_spacing, len(models) + 1, epoch_spacing)]
         models = [models[i - 1] for i in self.selected_epochs]
         self.selected_percentage = [np.round(i, 2) for i in np.arange(percentage_diff, max_percentage, percentage_diff)]
@@ -106,3 +107,5 @@ class Evaluator():
         for metric_name, metric_evaluation in zip(self.metric_names, self.metrics_evaluation):
             for dl_name, dl_metric_evaluation in zip(self.dataloader_names, metric_evaluation):
                 print(f'metric: {metric_name}, dataloader: {dl_name}, value: {dl_metric_evaluation}')
+
+        return ""
