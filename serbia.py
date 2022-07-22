@@ -24,6 +24,7 @@ class Serbia(Dataset):
 
     size = 120, 120
     resize = torchvision.transforms.Resize(size, interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
+    augmentations = 3
 
     mean = torch.tensor([0.0067, 0.0095, 0.0092, 0.0147, 0.0274, 0.0317, 0.0339, 0.0346, 0.0242, 0.0153])
     std = torch.tensor([0.0094, 0.0095, 0.0109, 0.0116, 0.0170, 0.0196, 0.0210, 0.0208, 0.0165, 0.0125])
@@ -58,14 +59,18 @@ class Serbia(Dataset):
 
         processed = Serbia.normalize(processed)
 
-        x = torch.empty((8,) + processed.shape)
+        x = torch.empty((Serbia.augmentations,) + processed.shape)
+        indexes = torch.randperm(8)[:Serbia.augmentations]
 
-        x[0] = processed
-        for i, angle in enumerate(range(90, 270 + 1, 90)):
-            x[1 + i] = torchvision.transforms.functional.rotate(processed, angle)
-        x[4] = hflip(processed)
-        for i, angle in enumerate(range(90, 270 + 1, 90)):
-            x[5 + i] = torchvision.transforms.functional.rotate(x[4], angle)
+        hflipped = None
+        for i, ind in enumerate(indexes):
+            img = None
+            if ind / 4 == 1:
+                img = hflipped = hflip(processed) if hflipped == None else hflipped
+            else:
+                img = processed
+
+            x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
 
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1

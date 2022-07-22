@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     for epoch in range(starting_epoch, epochs + 1):
        train(model, train_dataloader, optimizer, loss)
-       if epoch % 1 == 0:
+       if epoch % 5 == 0:
             torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
 
             train_x = []
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
 
             evaluator = Evaluator(results_directory)
-            dataloaders = {'train': train_dataloader, 'validation': validation_dataloader, 'test': test_dataloader}
+            dataloaders = {'test': test_dataloader}
             metrics = [Accuracy().cuda(), CustomAccuracy().cuda()]
             dcl_classifier = DCL_classifier(None, (train_x, train_y))
             def model_wrapper(m):
@@ -128,6 +128,7 @@ if __name__ == '__main__':
                 return dcl_classifier
             evaluator.evaluate(dataloaders, metrics, DCL.model.Model, model_wrapper, percentage_diff=0.5, max_percentage=0.5)
             print(evaluator)
+       torch.cuda.empty_cache()
 
     # evaluator.save()
     # evaluator.plot()

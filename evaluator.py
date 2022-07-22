@@ -45,21 +45,21 @@ class Evaluator():
                 model.eval()
                 model = model_wrapper(model)
 
-                for j, percent in enumerate(tqdm(self.selected_percentage, position=1, leave=False, desc='percentage')):
-                    model.train_subset_ratio = percent
-
-                    for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
-                        for metric in metrics:
-                            metric.reset()
-
-                        for x, l in tqdm(dataloader, position=3, leave=False, desc=f'{self.dataloader_names[k]}'):
-                            x = x[:, 0]
-
-                            for metric in metrics:
-                                metric.update(model(x), l)
-
-                        for metric, metric_evaluation in zip(metrics, self.metrics_evaluation):
-                            metric_evaluation[k][j][i] = metric.compute()
+                # for j, percent in enumerate(tqdm(self.selected_percentage, position=1, leave=False, desc='percentage')):
+                #     model.train_subset_ratio = percent
+                #
+                #     for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
+                #         for metric in metrics:
+                #             metric.reset()
+                #
+                #         for x, l in tqdm(dataloader, position=3, leave=False, desc=f'{self.dataloader_names[k]}'):
+                #             x = x[:, 0]
+                #
+                #             for metric in metrics:
+                #                 metric.update(model(x), l)
+                #
+                #         for metric, metric_evaluation in zip(metrics, self.metrics_evaluation):
+                #             metric_evaluation[k][j][i] = metric.compute()
 
     def get_latest_evaluation_path(self):
         evaluations_directory = self.results_directory / 'evaluations'

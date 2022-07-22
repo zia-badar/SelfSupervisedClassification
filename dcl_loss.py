@@ -52,7 +52,7 @@ class DCL_classifier():
         self.train_x, self.train_y = train
         self.train_subset_ratio = train_subset_ratio
 
-    def w_knn(self, test, temperature=0.5, k=200):
+    def w_knn(self, test, temperature=0.5, k=100):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
         train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
         test_x, test_y = test
@@ -60,7 +60,7 @@ class DCL_classifier():
         _c = Patch.classes
         _cn = 2
         weights = torch.mm(test_x, train_x.t())  # |test| x |train|
-        kweights, k_train_indices = torch.topk(weights, k=2, dim=-1)  # |test| x k
+        kweights, k_train_indices = torch.topk(weights, k, dim=-1)  # |test| x k
         kweights = (kweights / temperature).exp()
         klabels = train_y[k_train_indices, :]  # |test| x k x c
         klabels = torch.nn.functional.one_hot(klabels.long(), num_classes=_cn)  # |test| x k x c x _cn
