@@ -111,11 +111,10 @@ if __name__ == '__main__':
         train_percent_dataset = random_split(train_dataset, [subset_size, len(train_dataset) - subset_size])[0]
         train_dataloader = DataLoader(train_percent_dataset, batch_size=batch_size, num_workers=no_workers,
                                       shuffle=True, pin_memory=True)
-        bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False)
         early_stop = False
         while not early_stop:
             model.train()
-            for x, l in bar:
+            for x, l in tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False):
                 optim.zero_grad()
                 x = x.cuda(non_blocking=True)[:, 0]
                 l = l.cuda(non_blocking=True)
