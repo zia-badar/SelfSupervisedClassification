@@ -15,4 +15,4 @@ class Model(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.f(x)
-        return None, x
+        return x

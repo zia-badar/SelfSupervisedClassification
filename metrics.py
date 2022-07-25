@@ -52,8 +52,8 @@ class Loss(Metric):
         self.loss_func = loss_func
         self.add_state("loss", default=torch.tensor(0, dtype=torch.float32), dist_reduce_fx="sum")
 
-    def update(self, net, x, aug, l):
-        self.loss += self.loss_func(net, x, aug, l)
+    def update(self, net, batch):
+        self.loss += self.loss_func(net(batch[0]), batch[1])
 
     def compute(self):
         return self.loss.item()

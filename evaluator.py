@@ -10,13 +10,15 @@ from torchmetrics import Metric
 from tqdm import tqdm
 import numpy as np
 
+from metrics import Loss
+
 
 class Evaluator():
 
     def __init__(self, results_directory):
         self.results_directory = results_directory
 
-    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], model_wrapper, epoch_spacing = 1, percentage_diff=1, max_percentage=1):
+    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], model_wrapper=None, epoch_spacing = 1, percentage_diff=1, max_percentage=1):
         self.dataloader_names = list(dataloaders.keys())
         dataloaders = dataloaders.values()
         self.metric_names = [m.name for m in metrics]
@@ -43,7 +45,7 @@ class Evaluator():
                 model = nn.DataParallel(model)
                 model.load_state_dict(torch.load(model_path))
                 model.eval()
-                model = model_wrapper(model)
+                model = model_wrapper(model) if model_wrapper != None else model
 
                 for j, percent in enumerate(tqdm(self.selected_percentage, position=1, leave=False, desc='percentage')):
                     model.train_subset_ratio = percent
@@ -54,9 +56,14 @@ class Evaluator():
 
                         for x, l in tqdm(dataloader, position=3, leave=False, desc=f'{self.dataloader_names[k]}'):
                             x = x[:, 0]
+                            x = x.cuda()
+                            l = l.cuda()
 
                             for metric in metrics:
-                                metric.update(model(x), l)
+                                if isinstance(metric, Loss):
+                                    metric.update(model, (x, l))
+                                else:
+                                    metric.update(model(x), l)
 
                         for metric, metric_evaluation in zip(metrics, self.metrics_evaluation):
                             metric_evaluation[k][j][i] = metric.compute()
