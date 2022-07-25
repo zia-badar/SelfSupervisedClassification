@@ -111,7 +111,7 @@ if __name__ == '__main__':
         while not early_stop:
             subset_size = (int)(len(train_dataset)*percent/100)
             train_percent_dataset = random_split(train_dataset, [subset_size, len(train_dataset) - subset_size])[0]
-            train_dataloader = DataLoader(train_percent_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
+            train_dataloader = DataLoader(train_percent_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, pin_memory=True)
             bar = tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False)
             model.train()
             for x, l in bar:
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-            if epoch % 1 == 0:
+            if epoch % 5 == 0:
                 with torch.no_grad():
                     loss = 0
                     for x, l in validation_dataloader:
