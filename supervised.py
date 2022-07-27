@@ -7,9 +7,7 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-import utils
-from evaluator import Evaluator
-from metrics import Loss
+from loss import DB_Loss
 from model import Model
 from serbia import Serbia
 
@@ -72,6 +70,7 @@ if __name__ == '__main__':
     diff_percent = 5
     results_directory = Path('results/supervised')
     models_directory = results_directory / 'models'
+    evaluation_directory = results_directory / 'evaluations'
     continue_training = True
 
     train_dataset = Serbia(split='train')
@@ -89,10 +88,6 @@ if __name__ == '__main__':
         if len(saved_models) > 0:
             latest_saved_model = saved_models[0][1]
             start_percent = (int)(re.sub('.*_', '', latest_saved_model)) + diff_percent
-
-    # positive_weights, negative_weights, count = utils.calculate_class_weights(train_dataloader)
-    # positive_weights = positive_weights.cuda(non_blocking=True)
-    # negative_weights = negative_weights.cuda(non_blocking=True)
 
     # loss_func = DB_Loss(train_dataloader)
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -138,11 +133,3 @@ if __name__ == '__main__':
             epoch += 1
 
         torch.save(model.state_dict(), str(models_directory / f'trained_supervised_model_epoch_{percent}'))
-
-    evaluator = Evaluator(results_directory)
-    dataloaders = {'validation': validation_dataloader}
-    metrics = [Loss(loss_func).cuda()]
-    evaluator.evaluate(dataloaders, metrics, Model)
-    evaluator.save()
-    # evaluator = evaluator.load(Path('results/supervised/evaluations/evaluation_1'))
-    evaluator.plot()

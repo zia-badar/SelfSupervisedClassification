@@ -52,7 +52,7 @@ class DCL_classifier():
         self.train_x, self.train_y = train
         self.train_subset_ratio = train_subset_ratio
 
-    def w_knn(self, test, temperature=0.5, k=100):
+    def w_knn(self, test, temperature=0.5, k=25):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
         train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
         test_x, test_y = test

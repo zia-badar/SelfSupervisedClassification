@@ -8,7 +8,7 @@ from tqdm import tqdm
 import DCL.model
 from dcl_loss import DCL_loss, DCL_classifier
 from evaluator import Evaluator
-from metrics import CustomAccuracy, Accuracy
+from metrics import CustomAccuracy
 from patch import Patch
 from serbia import Serbia
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     no_workers = 16
     epochs = 60
-    results_directory = Path('results/unsupervised')
+    results_directory = Path('results/self_supervised')
     models_directory = results_directory / 'models'
     continue_training = True
     model_class = DCL.model.Model
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     validation_dataset = Serbia(split='validation')
     validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-    model = DCL.model.Model(128).cuda()
+    model = DCL.model.Model().cuda()
     model = nn.DataParallel(model)
 
     starting_epoch = 1
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
             evaluator = Evaluator(results_directory)
             dataloaders = {'test': test_dataloader}
-            metrics = [Accuracy().cuda(), CustomAccuracy().cuda()]
+            metrics = [CustomAccuracy().cuda()]
             dcl_classifier = DCL_classifier(None, (train_x, train_y))
             def model_wrapper(m):
                 dcl_classifier.dcl_model = m
@@ -130,5 +130,5 @@ if __name__ == '__main__':
             print(evaluator)
        torch.cuda.empty_cache()
 
-    # evaluator.save()
+    # evaluator.save('self-supervised')
     # evaluator.plot()

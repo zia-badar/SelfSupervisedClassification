@@ -5,6 +5,6 @@ __pycache__/
 DCL/data/
 results/supervised/models/*
 results/supervised/models_*
-results/unsupervised/models/*
+results/self_supervised/models/*
 slurm.sh
 slurm_output.log

@@ -1,24 +1,8 @@
-import sklearn.metrics
 import torch
 from torchmetrics import Metric
 
-class Accuracy(Metric):         # same as sklearn.metrics.accuracy_score for multi label
-    name = 'Accuracy'
-    full_state_update = False
+from patch import Patch
 
-    def __init__(self):
-        super().__init__()
-        self.add_state("correct", default=torch.tensor(0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
-
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        preds = preds.cuda(non_blocking = True).sigmoid().round()
-        target = target.cuda(non_blocking = True)
-        self.correct += torch.sum(torch.all(torch.eq(preds, target), dim=1))
-        self.total += target.shape[0]
-
-    def compute(self):
-        return (self.correct.float() / self.total).item()
 
 class CustomAccuracy(Metric):         # as recommended by lars, TP/(TP+FP+FN)
     name = 'TP/(TP+FP+FN) Metric'
@@ -40,8 +24,90 @@ class CustomAccuracy(Metric):         # as recommended by lars, TP/(TP+FP+FN)
         self.total += target.shape[0]
 
     def compute(self):
-        return (self.sum.float() / self.total).item()
+        return self.sum / self.total
 
+class Precision(Metric):
+    full_state_update = False
+
+    def __init__(self, type='micro'):
+        super().__init__()
+        self.add_state("numerator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.add_state("denominator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.type = type
+        self.name = 'Precision(TP/(TP+FP)) ' + self.type
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        preds = preds.cuda(non_blocking=True).sigmoid().round()
+        target = target.cuda(non_blocking=True)
+
+        tp = torch.sum(preds * target, dim=0)
+        fp = torch.sum((preds == True) * (target == False), dim=0)
+
+        self.numerator += tp
+        self.denominator += tp+fp
+
+    def compute(self):
+        result = 0
+        if self.type == 'micro':
+            result = torch.nan_to_num(self.numerator.sum() / self.denominator.sum(), nan=0)
+        elif self.type == 'macro':
+            result = (torch.nan_to_num(self.numerator / self.denominator, nan=0).sum() / self.numerator.shape[0])
+        elif self.type == 'per class':
+            result = torch.nan_to_num(self.numerator / self.denominator, nan=0)
+        return result
+
+class Recall(Metric):
+    full_state_update = False
+
+    def __init__(self, type='micro'):
+        super().__init__()
+        self.add_state("numerator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.add_state("denominator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.type = type
+        self.name = 'Recall(TP/(TP+FN)) ' + self.type
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        preds = preds.cuda(non_blocking=True).sigmoid().round()
+        target = target.cuda(non_blocking=True)
+
+        tp = torch.sum(preds * target, dim=0)
+        fn = torch.sum((preds == False) * (target == True), dim=0)
+
+        self.numerator += tp
+        self.denominator += tp+fn
+
+    def compute(self):
+        result = 0
+        if self.type == 'micro':
+            result = torch.nan_to_num(self.numerator.sum() / self.denominator.sum(), nan=0)
+        elif self.type == 'macro':
+            result = (torch.nan_to_num(self.numerator / self.denominator, nan=0).sum() / self.numerator.shape[0])
+        elif self.type == 'per class':
+            result = torch.nan_to_num(self.numerator / self.denominator, nan=0)
+        return result
+
+class F1_Score(Metric):
+    full_state_update = False
+
+    def __init__(self, type='micro'):
+        super().__init__()
+        self.type = type
+        self.name = 'F1_Score(2*precision*recall/(precision+recall)) ' + self.type
+        self.precision = Precision(self.type).cuda()
+        self.recall = Recall(self.type).cuda()
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.precision.update(preds, target)
+        self.recall.update(preds, target)
+
+    def compute(self):
+        precision = self.precision.compute()
+        recall = self.recall.compute()
+        return torch.nan_to_num(2 * (precision * recall) / (precision + recall), nan=0)
+
+    def reset(self):
+        self.precision = Precision(self.type).cuda()
+        self.recall = Recall(self.type).cuda()
 
 class Loss(Metric):
     name = 'Loss'
