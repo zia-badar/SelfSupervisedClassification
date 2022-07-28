@@ -3,8 +3,9 @@ serbia_dataset/
 .idea/
 __pycache__/
 DCL/data/
-results/supervised/models/*
-results/supervised/models_*
-results/self_supervised/models/*
+results/supervised/evaluations/*
+results/self_supervised/evaluations/*
+results/supervised/models*
+results/self_supervised/models*
 slurm.sh
 slurm_output.log

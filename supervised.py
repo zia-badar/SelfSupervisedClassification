@@ -64,10 +64,10 @@ def get_batch_size(modelCLass, dataset):
 
 
 if __name__ == '__main__':
-    no_workers = 16
-    start_percent = 5
+    no_workers = 32
+    start_percent = 20
     end_percent = 100
-    diff_percent = 5
+    diff_percent = 20
     results_directory = Path('results/supervised')
     models_directory = results_directory / 'models'
     evaluation_directory = results_directory / 'evaluations'

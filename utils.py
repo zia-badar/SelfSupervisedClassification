@@ -24,7 +24,6 @@ def generate_subset_from_bigearth(big_earth_dataset_path = Path('/BigEarthNet-v1
     gdf = gp.read_parquet(str(big_eath_meta_parquet_path))
     gdf = gdf[gdf.snow != True]
     gdf = gdf[gdf.cloud_or_shadow != True]
-    gdf = gdf[gdf.country == 'Serbia']
 
     with Pool(processes=20) as pool:
         def gen_wrapper():

@@ -51,7 +51,7 @@ class Evaluator():
                 model = model_wrapper(model) if model_wrapper != None else model
 
                 for j, percent in enumerate(tqdm(self.selected_percentage, position=1, leave=False, desc='percentage')):
-                    model.train_subset_ratio = percent
+                    model.train_subset_ratio = percent/100.
 
                     for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
                         for metric in metrics:
