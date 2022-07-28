@@ -24,15 +24,16 @@ class Serbia(Dataset):
 
     size = 120, 120
     resize = torchvision.transforms.Resize(size, interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
-    augmentations = 1
+    augmentation_count = 1
 
     mean = torch.tensor([0.0067, 0.0095, 0.0092, 0.0147, 0.0274, 0.0317, 0.0339, 0.0346, 0.0242, 0.0153])
     std = torch.tensor([0.0094, 0.0095, 0.0109, 0.0116, 0.0170, 0.0196, 0.0210, 0.0208, 0.0165, 0.0125])
     normalize = torchvision.transforms.Normalize(mean, std)
 
 
-    def __init__(self, lmdb_directory:Path = Path('../bigearth_subset_lmdb'), split:str='train'):
+    def __init__(self, lmdb_directory:Path = Path('../bigearth_subset_lmdb'), split:str='train', augmentation=True):
         self.split = split
+        self.augmentation = augmentation
         self.data_keys = []
 
         self.env = lmdb.open(str(lmdb_directory), map_size=LMDB_MAP_SIZE, readonly=True, lock=False)
@@ -59,8 +60,8 @@ class Serbia(Dataset):
 
         processed = Serbia.normalize(processed)
 
-        x = torch.empty((Serbia.augmentations,) + processed.shape)
-        indexes = torch.randperm(8)[:Serbia.augmentations]
+        x = torch.empty((Serbia.augmentation_count,) + processed.shape)
+        indexes = torch.randperm(8)[:Serbia.augmentation_count]
 
         hflipped = None
         for i, ind in enumerate(indexes):
@@ -75,7 +76,7 @@ class Serbia(Dataset):
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
 
-        return x, labels
+        return x if self.augmentation else processed.unsqueeze(0), labels
 
     def __len__(self):
         return len(self.data_keys)

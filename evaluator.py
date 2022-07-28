@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torchmetrics import Metric
 from tqdm import tqdm
 
+import dcl_loss
 from metrics import Loss
 from patch import Patch
 
@@ -20,26 +21,22 @@ class Evaluator():
         self.evaluations_directory = evaluations_directory
         self.models_directory = models_directory
 
-    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], model_wrapper=None, models_spacing = 1, model_multiplier = 1, percentage_diff=5, max_percentage=100):
+    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], model_wrapper=None, percentages=[None]):
         self.dataloader_names = list(dataloaders.keys())
         dataloaders = dataloaders.values()
         self.metric_names = [m.name for m in metrics]
-        self.model_multiplier = model_multiplier
 
         models = list(map(lambda path: (len(str(path)), str(path)), list((self.models_directory).glob('*'))))
         models.sort()
         models = list(map(lambda t: t[1], models))
         # models = models[-1:]              # keep one model in self-supervised model folder to test on percentage, or uncomment this line
-        self.selected_models = [i for i in range(models_spacing, len(models) + 1, models_spacing)]
-        models = [models[i - 1] for i in self.selected_models]
-        self.selected_percentage = [np.round(i, 2) for i in np.arange(percentage_diff, max_percentage, percentage_diff)]
-        self.selected_percentage.append(max_percentage)
+        self.x = [(float)(model_name.rsplit('_', 1)[1]) for model_name in models] if len(models) > 1 else percentages
 
-        if len(self.selected_models) > 1 and len(self.selected_percentage) > 1:
+        if len(models) > 1 and len(percentages) > 1:
             print('error: one of models or percentage should be of size 1')
             exit(-1)
 
-        self.metrics_evaluation = [[[[0 for _ in range(len(models))] for _ in range(len(self.selected_percentage))] for _ in range(len(dataloaders))] for _ in range(len(metrics))]
+        self.metrics_evaluation = [[[[0 for _ in range(len(models))] for _ in range(len(percentages))] for _ in range(len(dataloaders))] for _ in range(len(metrics))]
 
         with torch.no_grad():
             for i, model_path in enumerate(tqdm(models, position=0, desc='models')):
@@ -50,8 +47,9 @@ class Evaluator():
                 model.eval()
                 model = model_wrapper(model) if model_wrapper != None else model
 
-                for j, percent in enumerate(tqdm(self.selected_percentage, position=1, leave=False, desc='percentage')):
-                    model.train_subset_ratio = percent/100.
+                for j, percent in enumerate(tqdm(percentages, position=1, leave=False, desc='percentage')):
+                    if isinstance(model, dcl_loss.DCL_classifier):
+                        model.train_subset_ratio = percent/100.
 
                     for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
                         for metric in metrics:
@@ -123,23 +121,20 @@ class Evaluator():
                     if metric_name.endswith('per class'):
                         eval = np.array(torch.stack(Evaluator.flat_list(dl_metric_evaluation)).cpu())
                         classnames = list(Patch._19_label_to_index.keys())
-                        percent = evaluator.model_multiplier + np.arange(eval.shape[0]) * evaluator.model_multiplier
                         for c in range(Patch.classes):
                             current_axis = axis[int(c/7), c%7]
-                            current_axis.plot(percent, eval[:, c], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                            current_axis.plot(evaluator.x, eval[:, c], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
                             current_axis.set_title(classnames[c] if len(classnames[c]) < 15 else (classnames[c][:15]) + "...", color=('#cc3300' if evaluator_name == critical_evaluator_name and eval[:, c].sum() < 0.1 else '#339900'))
                             current_axis.grid(True, alpha=0.3)
                     else:
-                        x = np.array(evaluator.selected_models) * evaluator.model_multiplier if len(evaluator.selected_models) > 1 else evaluator.selected_percentage
-                        pyplot.plot(x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1), label=f'{evaluator_name}, {dl_name}', alpha=0.7)
-                        pyplot.xticks(x)
+                        pyplot.plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1), label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                        pyplot.xticks(evaluator.x)
                         pyplot.yticks(np.arange(0, 1.1, 0.1))
                         pyplot.ylim([-0.1, 1.1])
                         pyplot.grid(True, alpha=0.3)
 
             if metric_name.endswith('per class'):
-                xticks = [evaluator.model_multiplier] + list(np.arange(20, eval.shape[0]*evaluator.model_multiplier+1, 20))
-                pyplot.setp(axis, xticks=xticks, yticks=np.arange(0.0, 1.1, 0.1), ylim=[-0.1, 1.2])
+                pyplot.setp(axis, xticks=evaluator.x, yticks=np.arange(0.0, 1.1, 0.1), ylim=[-0.1, 1.2])
                 fig.suptitle(metric_name, fontsize=50)
                 fig.supxlabel('percentage')
                 fig.supylabel(metric_name)

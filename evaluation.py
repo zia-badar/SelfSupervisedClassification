@@ -53,11 +53,11 @@ if __name__ == '__main__':
 
     no_workers = 32
 
-    train_dataset = Serbia(split='train')
+    train_dataset = Serbia(split='train', lmdb_directory=Path('../serbia_lmdb'))
     batch_size = get_batch_size(dcl_model.Model, train_dataset)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
 
-    test_dataset = Serbia(split='test')
+    test_dataset = Serbia(split='test', lmdb_directory=Path('../serbia_lmdb'))
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
 
     metrics = [
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     evaluator = Evaluator(supervised_evaluation_directory, supervised_model_directory)
     dataloaders = {'test': test_dataloader}
-    evaluator.evaluate(dataloaders, metrics, Model, model_multiplier=5, percentage_diff=100)
+    evaluator.evaluate(dataloaders, metrics, Model)
     evaluator.save(supervised_evaluation_name)
 
     # not showing improvement than bce
@@ -128,4 +128,4 @@ if __name__ == '__main__':
     evaluator.save(self_supervised_evaluation_name)
 
 
-    Evaluator.plot([supervised_evaluation_name, self_supervised_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name), Evaluator.load(Path(self_supervised_evaluation_directory / self_supervised_evaluation_name))], critical_evaluator_name = self_supervised_evaluation_name)
+    Evaluator.plot([supervised_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name)])
