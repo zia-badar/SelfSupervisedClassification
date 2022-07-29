@@ -63,23 +63,20 @@ def get_batch_size(modelCLass, dataset):
 
     return best_batch_size
 
+training_percentages = np.arange(1, 101, 1)
 
 if __name__ == '__main__':
     no_workers = 32
-    percentages = np.array(list(np.arange(0.03, 0.1, 0.03)) + list(np.arange(0.3, 1., 0.3)) + list(np.arange(3, 10, 3)) + [50, 100])
     results_directory = Path('results/supervised')
     models_directory = results_directory / 'models'
     evaluation_directory = results_directory / 'evaluations'
     continue_training = True
 
-    train_dataset = Serbia(split='train', lmdb_directory=Path('../serbia_lmdb'), augmentation=False)
+    train_dataset = Serbia(split='train')
     batch_size = get_batch_size(Model, train_dataset) - 5
 
-    validation_dataset = Serbia(split='validation', lmdb_directory=Path('../serbia_lmdb'), augmentation=False)
+    validation_dataset = Serbia(split='validation')
     validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
-
-    # test_dataset = Serbia(split='test')
-    # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     if continue_training:
         saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
@@ -87,7 +84,7 @@ if __name__ == '__main__':
         if len(saved_models) > 0:
             latest_saved_model = saved_models[0][1]
             latest = (float)(re.sub('.*_', '', latest_saved_model))
-            percentages = percentages[percentages > latest]
+            percentages = training_percentages[training_percentages > latest]
 
     # loss_func = DB_Loss(train_dataloader)
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -137,4 +134,4 @@ if __name__ == '__main__':
 
             epoch += 1
 
-        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{percent}'))
+        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{"{:.2f}".format(percent)}'))

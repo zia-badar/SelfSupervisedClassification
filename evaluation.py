@@ -6,8 +6,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import DCL.model as dcl_model
+import supervised
 from dcl_loss import DCL_classifier
-
 from evaluator import Evaluator
 from metrics import CustomAccuracy, Precision, Recall, F1_Score
 from model import Model
@@ -53,11 +53,11 @@ if __name__ == '__main__':
 
     no_workers = 32
 
-    train_dataset = Serbia(split='train', lmdb_directory=Path('../serbia_lmdb'))
+    train_dataset = Serbia(split='train')
     batch_size = get_batch_size(dcl_model.Model, train_dataset)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
 
-    test_dataset = Serbia(split='test', lmdb_directory=Path('../serbia_lmdb'))
+    test_dataset = Serbia(split='test')
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
 
     metrics = [
@@ -124,8 +124,8 @@ if __name__ == '__main__':
         dcl_classifier.dcl_model = m
         return dcl_classifier
 
-    evaluator.evaluate(dataloaders, metrics, dcl_model.Model, model_wrapper, percentage_diff=5, model_multiplier=5)
+    evaluator.evaluate(dataloaders, metrics, dcl_model.Model, model_wrapper, percentages=supervised.training_percentages)
     evaluator.save(self_supervised_evaluation_name)
 
 
-    Evaluator.plot([supervised_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name)])
+    Evaluator.plot([supervised_evaluation_name, self_supervised_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name), Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name)], critical_evaluator_name = self_supervised_evaluation_name)

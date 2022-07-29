@@ -1,3 +1,4 @@
+import collections
 import pickle as pk
 from pathlib import Path
 from typing import Type
@@ -29,7 +30,13 @@ class Evaluator():
         models = list(map(lambda path: (len(str(path)), str(path)), list((self.models_directory).glob('*'))))
         models.sort()
         models = list(map(lambda t: t[1], models))
-        # models = models[-1:]              # keep one model in self-supervised model folder to test on percentage, or uncomment this line
+        if len(models) > 1:         # sorting models
+            dict = {}
+            for m in models:
+                dict[(float)(m.rsplit('_', 1)[1])] = m
+            models = list(collections.OrderedDict(sorted(dict.items())).values())
+
+
         self.x = [(float)(model_name.rsplit('_', 1)[1]) for model_name in models] if len(models) > 1 else percentages
 
         if len(models) > 1 and len(percentages) > 1:
@@ -129,6 +136,8 @@ class Evaluator():
                     else:
                         pyplot.plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1), label=f'{evaluator_name}, {dl_name}', alpha=0.7)
                         pyplot.xticks(evaluator.x)
+                        pyplot.xlabel('percentage')
+                        pyplot.ylabel(metric_name)
                         pyplot.yticks(np.arange(0, 1.1, 0.1))
                         pyplot.ylim([-0.1, 1.1])
                         pyplot.grid(True, alpha=0.3)
