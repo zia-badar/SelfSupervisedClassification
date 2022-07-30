@@ -63,6 +63,13 @@ def get_batch_size(modelCLass, dataset):
 
     return best_batch_size
 
+def get_percent_dataloader_from_dataset(dataset, percent=100):          # make sure batch_size and no_worker is in scope from where this function is being called
+    subset_size = (int)(len(dataset) * percent / 100)
+    percent_dataset = random_split(dataset, [subset_size, len(dataset) - subset_size])[0]
+    percent_dataloader = DataLoader(percent_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, pin_memory=True)
+
+    return percent_dataloader
+
 training_percentages = np.arange(1, 101, 1)
 
 if __name__ == '__main__':
@@ -76,7 +83,6 @@ if __name__ == '__main__':
     batch_size = get_batch_size(Model, train_dataset) - 5
 
     validation_dataset = Serbia(split='validation')
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     if continue_training:
         saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
@@ -101,10 +107,10 @@ if __name__ == '__main__':
         last_loss = sys.float_info.max
         last_model = None
         epoch = 1
-        subset_size = (int)(len(train_dataset) * percent / 100)
-        train_percent_dataset = random_split(train_dataset, [subset_size, len(train_dataset) - subset_size])[0]
-        train_dataloader = DataLoader(train_percent_dataset, batch_size=batch_size, num_workers=no_workers,
-                                      shuffle=True, pin_memory=True)
+
+        train_dataloader = get_percent_dataloader_from_dataset(train_dataset, percent)
+        validation_dataloader = get_percent_dataloader_from_dataset(validation_dataset, percent)
+
         early_stop = False
         while not early_stop:
             model.train()
