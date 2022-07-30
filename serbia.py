@@ -1,5 +1,7 @@
+import pickle
 import pickle as pk
 from multiprocessing import Pool
+from os.path import exists
 from pathlib import Path
 
 import lmdb
@@ -37,16 +39,24 @@ class Serbia(Dataset):
         self.data_keys = []
 
         self.env = lmdb.open(str(lmdb_directory), map_size=LMDB_MAP_SIZE, readonly=True, lock=False)
+        keys_filename = lmdb_directory / (split + '_keys')
 
-        with self.env.begin(buffers=True) as txn:
-            with Pool(processes=20) as pool:
-                def gen_wrapper():
-                    for k, _ in txn.cursor():
-                        yield k.tobytes(), split
+        if exists(keys_filename):               # saves time and take very little extra storage, specially for hpc
+            with open(keys_filename, 'rb') as f:
+                self.data_keys = pickle.load(f)
+        else:
+            with self.env.begin(buffers=True) as txn:
+                with Pool(processes=20) as pool:
+                    def gen_wrapper():
+                        for k, _ in txn.cursor():
+                            yield k.tobytes(), split
 
-                for patch_name in pool.imap_unordered(func_3, tqdm(gen_wrapper(), total=txn.stat()['entries']), chunksize=1024):
-                    if patch_name != None:
-                        self.data_keys.append(patch_name)
+                    for patch_name in pool.imap_unordered(func_3, tqdm(gen_wrapper(), total=txn.stat()['entries']), chunksize=1024):
+                        if patch_name != None:
+                            self.data_keys.append(patch_name)
+
+            with open(keys_filename, 'wb') as f:
+                pickle.dump(self.data_keys, f, pickle.HIGHEST_PROTOCOL)
 
     def __getitem__(self, item):
         with self.env.begin(buffers=True) as txn:
