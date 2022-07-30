@@ -91,6 +91,8 @@ if __name__ == '__main__':
             latest_saved_model = saved_models[0][1]
             latest = (float)(re.sub('.*_', '', latest_saved_model))
             percentages = training_percentages[training_percentages > latest]
+        else:
+            percentages = training_percentages
 
     # loss_func = DB_Loss(train_dataloader)
     loss_func = torch.nn.BCEWithLogitsLoss()
