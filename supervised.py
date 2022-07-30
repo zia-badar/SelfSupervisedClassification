@@ -97,6 +97,7 @@ if __name__ == '__main__':
 
     # loss_func = DB_Loss(train_dataloader)
     loss_func = torch.nn.BCEWithLogitsLoss()
+    early_stop_epoch_diff = 10
 
     percent_tqdm = tqdm(percentages, position=1)
     for percent in percent_tqdm:
@@ -127,7 +128,7 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-            if epoch % 1 == 0:
+            if epoch % early_stop_epoch_diff == 0:
                 model.eval()
                 with torch.no_grad():
                     loss = 0
@@ -143,4 +144,4 @@ if __name__ == '__main__':
 
             epoch += 1
 
-        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{epoch}_{"{:.2f}".format(percent)}'))
+        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{epoch - early_stop_epoch_diff}_{"{:.2f}".format(percent)}'))
