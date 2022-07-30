@@ -44,6 +44,7 @@ def get_batch_size(modelCLass, dataset):
 
                 loss.backward()
                 optimizer.step()
+                break
 
             return True
         except RuntimeError as ex:
@@ -126,11 +127,11 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-            if epoch % 5 == 0:
+            if epoch % 1 == 0:
                 model.eval()
                 with torch.no_grad():
                     loss = 0
-                    for x, l in validation_dataloader:
+                    for x, l in tqdm(validation_dataloader, leave=True):
                         x = x[:, 0].cuda()
                         l = l.cuda()
                         loss += loss_func(model(x), l)
@@ -142,4 +143,4 @@ if __name__ == '__main__':
 
             epoch += 1
 
-        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{"{:.2f}".format(percent)}'))
+        torch.save(last_model.state_dict(), str(models_directory / f'trained_supervised_model_{epoch}_{"{:.2f}".format(percent)}'))
