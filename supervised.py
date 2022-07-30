@@ -131,7 +131,7 @@ if __name__ == '__main__':
                 model.eval()
                 with torch.no_grad():
                     loss = 0
-                    for x, l in tqdm(validation_dataloader, leave=True):
+                    for x, l in tqdm(validation_dataloader, leave=False, desc='validating', position=2):
                         x = x[:, 0].cuda()
                         l = l.cuda()
                         loss += loss_func(model(x), l)
