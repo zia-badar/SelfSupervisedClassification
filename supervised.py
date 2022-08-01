@@ -71,7 +71,7 @@ def get_percent_dataloader_from_dataset(dataset, percent=100):          # make s
 
     return percent_dataloader
 
-training_percentages = list(np.round(np.arange(0.2, 1.2, 0.2), 2)) + list(np.round(np.arange(2, 12, 2), 2)) + list(np.round(np.arange(20, 100, 20), 2))
+training_percentages = list(np.arange(1, 31))
 
 if __name__ == '__main__':
     no_workers = 32
@@ -83,8 +83,6 @@ if __name__ == '__main__':
     train_dataset = Serbia(split='train')
     batch_size = 256
 
-    validation_dataset = Serbia(split='validation')
-
     percentages = training_percentages
     if continue_training:
         saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
@@ -94,10 +92,9 @@ if __name__ == '__main__':
             latest = (float)(re.sub('.*_', '', latest_saved_model))
             percentages = percentages[percentages > latest]
 
-    # loss_func = DB_Loss(train_dataloader)
     loss_func = torch.nn.BCEWithLogitsLoss()
-    early_stop_epoch_diff = 10
 
+    best_early_stop_epoch = 27                      # calculated by plotting validation loss over percent and epoch
     percent_tqdm = tqdm(percentages, position=1)
     for percent in percent_tqdm:
         percent = np.round(percent, 2)
@@ -107,16 +104,9 @@ if __name__ == '__main__':
         model = nn.DataParallel(model)
         optim = torch.optim.Adam(model.parameters())
 
-        last_loss = sys.float_info.max
-        last_model = None
-        epoch = 1
-
         train_dataloader = get_percent_dataloader_from_dataset(train_dataset, percent)
-        validation_dataloader = get_percent_dataloader_from_dataset(validation_dataset, percent)
 
-        early_stop = False
-        for epoch in range(1, 101):
-        # while not early_stop:
+        for epoch in range(1, best_early_stop_epoch+1):
             model.train()
             for x, l in tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False):
                 optim.zero_grad()
@@ -128,20 +118,4 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-            # if epoch % early_stop_epoch_diff == 0:
-            #     model.eval()
-            #     with torch.no_grad():
-            #         loss = 0
-            #         for x, l in tqdm(validation_dataloader, leave=False, desc='validating', position=2):
-            #             x = x[:, 0].cuda()
-            #             l = l.cuda()
-            #             loss += loss_func(model(x), l)
-            #
-            #     early_stop = (last_loss - loss < 0)
-            #     if not early_stop:
-            #         last_loss = loss
-            #         last_model = copy.deepcopy(model)
-            #
-            # epoch += 1
-            if epoch % 10 == 0:
-                torch.save(model.state_dict(), str(models_directory / f'trained_supervised_model_{epoch}_{"{:.2f}".format(percent)}'))
+            torch.save(model.state_dict(), str(models_directory / f'supervised_{epoch}_{"{:.2f}".format(percent)}'))
