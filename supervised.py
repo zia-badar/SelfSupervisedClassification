@@ -118,4 +118,4 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-            torch.save(model.state_dict(), str(models_directory / f'supervised_{epoch}_{"{:.2f}".format(percent)}'))
+            torch.save(model.state_dict(), str(models_directory / f'supervised_{"{:.2f}".format(percent)}'))
