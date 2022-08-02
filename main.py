@@ -6,9 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import DCL.model
-from dcl_loss import DCL_loss, DCL_classifier
-from evaluator import Evaluator
-from metrics import CustomAccuracy
+from dcl_loss import DCL_loss
 from patch import Patch
 from serbia import Serbia
 
@@ -70,7 +68,7 @@ def get_batch_size(modelCLass, dataset):
 if __name__ == '__main__':
 
     no_workers = 16
-    epochs = 60
+    epochs = 1000
     results_directory = Path('results/self_supervised')
     models_directory = results_directory / 'models'
     continue_training = True
@@ -79,12 +77,6 @@ if __name__ == '__main__':
     train_dataset = Serbia(split='train')
     batch_size = get_batch_size(model_class, train_dataset)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
-
-    test_dataset = Serbia(split='test')
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
-
-    validation_dataset = Serbia(split='validation')
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     model = DCL.model.Model().cuda()
     model = nn.DataParallel(model)
@@ -103,32 +95,4 @@ if __name__ == '__main__':
 
     for epoch in range(starting_epoch, epochs + 1):
        train(model, train_dataloader, optimizer, loss)
-       if epoch % 5 == 0:
-            torch.save(model.state_dict(), str(models_directory / f'model_{epoch}'))
-
-            train_x = []
-            train_y = []
-            with torch.no_grad():
-                for x, l in tqdm(train_dataloader):
-                    x = x[:, 0]
-                    f, _ = model(x)
-                    train_x.append(f)
-                    train_y.append(l)
-
-            train_x = torch.cat(train_x, dim=0)
-            train_y = torch.cat(train_y, dim=0).cuda()
-
-
-            evaluator = Evaluator(results_directory)
-            dataloaders = {'test': test_dataloader}
-            metrics = [CustomAccuracy().cuda()]
-            dcl_classifier = DCL_classifier(None, (train_x, train_y))
-            def model_wrapper(m):
-                dcl_classifier.dcl_model = m
-                return dcl_classifier
-            evaluator.evaluate(dataloaders, metrics, DCL.model.Model, model_wrapper, percentage_diff=0.5, max_percentage=0.5)
-            print(evaluator)
-       torch.cuda.empty_cache()
-
-    # evaluator.save('self-supervised')
-    # evaluator.plot()
+       torch.save(model.state_dict(), str(models_directory / f'self_supervised_{epoch}'))
