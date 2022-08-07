@@ -74,13 +74,13 @@ def get_percent_dataloader_from_dataset(dataset, percent=100):          # make s
 training_percentages = list(np.arange(1, 31))
 
 if __name__ == '__main__':
-    no_workers = 32
+    no_workers = 40
     results_directory = Path('results/supervised')
     models_directory = results_directory / 'models'
     evaluation_directory = results_directory / 'evaluations'
     continue_training = False
 
-    train_dataset = Serbia(split='train')
+    train_dataset = Serbia(split='train', augmentation=False)
     batch_size = 256
 
     percentages = training_percentages

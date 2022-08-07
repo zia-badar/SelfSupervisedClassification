@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import DCL.model
-from dcl_loss import DCL_loss
+from dcl_loss import DCL_loss, DCL_classifier
+from metrics import CustomAccuracy
 from patch import Patch
 from serbia import Serbia
 
@@ -35,7 +36,7 @@ def get_batch_size(modelCLass, dataset):
     model = modelCLass(128).cuda()
     model = nn.DataParallel(model)
     optimizer = torch.optim.Adam(model.parameters())
-    loss = DCL_loss(.5, True, 1. / Patch.classes, -1)
+    loss = DCL_loss(1. / Patch.classes)
 
     def possible(new_batch_size):
         try:
@@ -67,7 +68,7 @@ def get_batch_size(modelCLass, dataset):
 
 if __name__ == '__main__':
 
-    no_workers = 16
+    no_workers = 40
     epochs = 1000
     results_directory = Path('results/self_supervised')
     models_directory = results_directory / 'models'
@@ -76,7 +77,11 @@ if __name__ == '__main__':
 
     train_dataset = Serbia(split='train')
     batch_size = get_batch_size(model_class, train_dataset)
+    print(f'best batch size found: {batch_size}', flush=True)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
+
+    validation_dataset = Serbia(split='validation', augmentation_count=1)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     model = DCL.model.Model().cuda()
     model = nn.DataParallel(model)
@@ -91,8 +96,31 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(latest_saved_model))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    loss = DCL_loss(.5, True, 1./Patch.classes, -1)
+    loss = DCL_loss(1./Patch.classes)
+
+    validation_metrics = [CustomAccuracy().cuda()]
 
     for epoch in range(starting_epoch, epochs + 1):
        train(model, train_dataloader, optimizer, loss)
        torch.save(model.state_dict(), str(models_directory / f'self_supervised_{epoch}'))
+
+       if epoch % 5:
+            train_x = []
+            train_y = []
+            with torch.no_grad():
+                for x, l in tqdm(train_dataloader):
+                    x = x[:, 0]
+                    f, _ = model(x)
+                    train_x.append(f)
+                    train_y.append(l)
+
+            train_x = torch.cat(train_x, dim=0)
+            train_y = torch.cat(train_y, dim=0).cuda()
+
+            dcl_classifier = DCL_classifier(model, (train_x, train_y))
+            for metric in validation_metrics:
+                metric.reset()
+                for x, l in validation_dataloader:
+                    x = x[:, 0]
+                    metric.update(dcl_classifier(x), l)
+                print(f'metric result: {metric.compute()}')

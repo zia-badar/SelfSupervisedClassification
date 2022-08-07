@@ -4,29 +4,18 @@ import torch
 
 from patch import Patch
 
+temperature = .5
 
 class DCL_loss():
-    def __init__(self, temperature, debiased, tau_plus, batch_size):
-        self.temperature = temperature
-        self.debiased = debiased
+    def __init__(self, tau_plus):
         self.tau_plus = tau_plus
-        self.batch_size = batch_size
-
-    def get_negative_mask(batch_size):
-        negative_mask = torch.ones((batch_size, 2 * batch_size), dtype=bool)
-        for i in range(batch_size):
-            negative_mask[i, i] = 0
-            negative_mask[i, i + batch_size] = 0
-
-        negative_mask = torch.cat((negative_mask, negative_mask), 0)
-        return negative_mask
 
     def __call__(self, model, batch):
         x, _ = batch
         batch, aug = x.shape[:2]
         x = x.view((batch*aug,) + x.shape[2:])
         _, x = model(x)    # (batch*aug) x dim
-        f = torch.exp((x @ x.t())/self.temperature).view(batch, aug, batch, aug)      # batch x aug x batch x aug
+        f = torch.exp((x @ x.t())/temperature).view(batch, aug, batch, aug)      # batch x aug x batch x aug
         N = (batch-1) * aug
         f_x_u_filter = torch.ones((batch, aug, batch, aug), dtype=torch.bool).cuda()
         for i in range(batch):
@@ -39,7 +28,7 @@ class DCL_loss():
         f_x_v = torch.masked_select(f, f_x_v_filter).view(batch, aug, aug-1)
         f_x_v_p = f_x_v
 
-        m = N*torch.exp(torch.tensor([-1/self.temperature])).cuda()
+        m = N*torch.exp(torch.tensor([-1/temperature])).cuda()
         Ng = torch.clip((1/(1-self.tau_plus)) * (f_x_u.view(batch, aug, -1).sum(-1) - ((N*self.tau_plus)/M)*f_x_v.sum(-1) ), min=m)[:, :, None]    # batch x aug x 1
 
         loss = torch.mean(-torch.log(f_x_v_p/(f_x_v_p + Ng)))
@@ -52,7 +41,7 @@ class DCL_classifier():
         self.train_x, self.train_y = train
         self.train_subset_ratio = train_subset_ratio
 
-    def w_knn(self, test, temperature=0.5, k=25):
+    def w_knn(self, test, k=15):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
         train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
         test_x, test_y = test

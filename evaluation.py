@@ -51,14 +51,14 @@ def get_batch_size(modelCLass, dataset):
 
 if __name__ == '__main__':
 
-    no_workers = 32
+    no_workers = 40
 
-    train_dataset = Serbia(split='train')
+    train_dataset = Serbia(split='train', augmentation_count=1)
     batch_size = get_batch_size(dcl_model.Model, train_dataset)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-    test_dataset = Serbia(split='test')
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True, pin_memory=True)
+    test_dataset = Serbia(split='test', augmentation_count=1)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     metrics = [
                CustomAccuracy().cuda(),
@@ -83,13 +83,6 @@ if __name__ == '__main__':
     evaluator.evaluate(dataloaders, metrics, Model)
     evaluator.save(supervised_evaluation_name)
 
-    # not showing improvement than bce
-    # evaluator = Evaluator(evaluation_directory, results_directory / 'models_db_loss')
-    # dataloaders = {'test': test_dataloader}
-    # metrics = [PerClassAccuracy().cuda(), CustomAccuracy().cuda()]
-    # evaluator.evaluate(dataloaders, metrics, Model, model_multiplier=5)
-    # evaluator.save('db_loss')
-
     self_supervised_result_directory = Path('results/self_supervised')
     self_supervised_evaluation_directory = self_supervised_result_directory / 'evaluations'
     self_supervised_model_directory = self_supervised_result_directory / 'models'
@@ -104,24 +97,25 @@ if __name__ == '__main__':
         latest_saved_model = saved_models[0][1]
         model.load_state_dict(torch.load(latest_saved_model))
 
-    train_x = []
-    train_y = []
-    with torch.no_grad():
-        for x, l in tqdm(train_dataloader):
-            x = x[:, 0]
-            f, _ = model(x)
-            train_x.append(f)
-            train_y.append(l)
-
-    train_x = torch.cat(train_x, dim=0)
-    train_y = torch.cat(train_y, dim=0).cuda()
 
     evaluator = Evaluator(self_supervised_evaluation_directory, self_supervised_model_directory)
     dataloaders = {'test': test_dataloader}
-    dcl_classifier = DCL_classifier(None, (train_x, train_y))
 
     def model_wrapper(m):
-        dcl_classifier.dcl_model = m
+        train_x = []
+        train_y = []
+        with torch.no_grad():
+            for x, l in tqdm(train_dataloader):
+                x = x[:, 0]
+                f, _ = m(x)
+                train_x.append(f)
+                train_y.append(l)
+
+        train_x = torch.cat(train_x, dim=0)
+        train_y = torch.cat(train_y, dim=0).cuda()
+
+        dcl_classifier = DCL_classifier(m, (train_x, train_y))
+
         return dcl_classifier
 
     evaluator.evaluate(dataloaders, metrics, dcl_model.Model, model_wrapper, percentages=supervised.training_percentages)
