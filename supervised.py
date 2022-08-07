@@ -71,7 +71,7 @@ def get_percent_dataloader_from_dataset(dataset, percent=100):          # make s
 
     return percent_dataloader
 
-training_percentages = list(np.arange(1, 31))
+training_percentages = list(np.arange(1, 21)) + [100]
 
 if __name__ == '__main__':
     no_workers = 40
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     evaluation_directory = results_directory / 'evaluations'
     continue_training = False
 
-    train_dataset = Serbia(split='train', augmentation=False)
+    train_dataset = Serbia(split='train', augementation_type=1, augmentation_count=1)
     batch_size = 256
 
     percentages = training_percentages

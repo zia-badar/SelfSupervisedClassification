@@ -28,7 +28,9 @@ def get_batch_size(modelCLass, dataset):
                         break
                     yield batch
             for x, l in dataloader_wrapper(DataLoader(dataset, new_batch_size, shuffle=True, pin_memory=True, drop_last=True)):
-                model(x[:, 0].cuda())
+                with torch.no_grad():
+                    model.eval()
+                    model(x[:, 0].cuda())
                 break
             return True
         except RuntimeError as ex:
@@ -53,11 +55,11 @@ if __name__ == '__main__':
 
     no_workers = 40
 
-    train_dataset = Serbia(split='train', augmentation_count=1)
-    batch_size = get_batch_size(dcl_model.Model, train_dataset)
+    train_dataset = Serbia(split='train', augementation_type=1, augmentation_count=1)
+    batch_size = get_batch_size(dcl_model.Model, train_dataset) - 40
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-    test_dataset = Serbia(split='test', augmentation_count=1)
+    test_dataset = Serbia(split='test', augementation_type=1, augmentation_count=1)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     metrics = [
@@ -83,20 +85,18 @@ if __name__ == '__main__':
     evaluator.evaluate(dataloaders, metrics, Model)
     evaluator.save(supervised_evaluation_name)
 
+    train_dataset = Serbia(split='train', augementation_type=2, augmentation_count=1)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True,
+                                  drop_last=True, pin_memory=True)
+
+    test_dataset = Serbia(split='test', augementation_type=2, augmentation_count=1)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True,
+                                 drop_last=True, pin_memory=True)
+
     self_supervised_result_directory = Path('results/self_supervised')
     self_supervised_evaluation_directory = self_supervised_result_directory / 'evaluations'
     self_supervised_model_directory = self_supervised_result_directory / 'models'
     self_supervised_evaluation_name = 'self-supervised'
-
-    model = dcl_model.Model().cuda()
-    model = nn.DataParallel(model)
-
-    saved_models = [(len(str(path)), str(path)) for path in self_supervised_model_directory.glob('*')]
-    saved_models.sort(reverse=True)
-    if len(saved_models) > 0:
-        latest_saved_model = saved_models[0][1]
-        model.load_state_dict(torch.load(latest_saved_model))
-
 
     evaluator = Evaluator(self_supervised_evaluation_directory, self_supervised_model_directory)
     dataloaders = {'test': test_dataloader}

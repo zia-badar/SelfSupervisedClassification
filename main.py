@@ -75,12 +75,12 @@ if __name__ == '__main__':
     continue_training = True
     model_class = DCL.model.Model
 
-    train_dataset = Serbia(split='train')
+    train_dataset = Serbia(split='train', augementation_type=2)
     batch_size = get_batch_size(model_class, train_dataset)
     print(f'best batch size found: {batch_size}', flush=True)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
-    validation_dataset = Serbia(split='validation', augmentation_count=1)
+    validation_dataset = Serbia(split='validation', augementation_type=2, augmentation_count=1)
     validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     model = DCL.model.Model().cuda()
@@ -108,7 +108,9 @@ if __name__ == '__main__':
             train_x = []
             train_y = []
             with torch.no_grad():
-                for x, l in tqdm(train_dataloader):
+                model.eval()
+                for x, l in tqdm(DataLoader(Serbia(split='train', augementation_type=2, augmentation_count=1), batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)):         # fix for hpc, some how cause problems with workers
+                # for x, l in tqdm(train_dataloader):
                     x = x[:, 0]
                     f, _ = model(x)
                     train_x.append(f)
@@ -120,7 +122,7 @@ if __name__ == '__main__':
             dcl_classifier = DCL_classifier(model, (train_x, train_y))
             for metric in validation_metrics:
                 metric.reset()
-                for x, l in validation_dataloader:
+                for x, l in tqdm(validation_dataloader):
                     x = x[:, 0]
                     metric.update(dcl_classifier(x), l)
                 print(f'metric result: {metric.compute()}')

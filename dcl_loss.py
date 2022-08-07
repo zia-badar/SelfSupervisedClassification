@@ -36,12 +36,13 @@ class DCL_loss():
         return loss
 
 class DCL_classifier():
-    def __init__(self, dcl_model: Type[torch.nn.Module], train, train_subset_ratio=0.5):
+    def __init__(self, dcl_model: Type[torch.nn.Module], train, train_subset_ratio=.5, k=10):
         self.dcl_model = dcl_model
         self.train_x, self.train_y = train
         self.train_subset_ratio = train_subset_ratio
+        self.k = k
 
-    def w_knn(self, test, k=15):
+    def w_knn(self, test):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
         train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
         test_x, test_y = test
@@ -49,7 +50,7 @@ class DCL_classifier():
         _c = Patch.classes
         _cn = 2
         weights = torch.mm(test_x, train_x.t())  # |test| x |train|
-        kweights, k_train_indices = torch.topk(weights, k, dim=-1)  # |test| x k
+        kweights, k_train_indices = torch.topk(weights, self.k, dim=-1)  # |test| x k
         kweights = (kweights / temperature).exp()
         klabels = train_y[k_train_indices, :]  # |test| x k x c
         klabels = torch.nn.functional.one_hot(klabels.long(), num_classes=_cn)  # |test| x k x c x _cn

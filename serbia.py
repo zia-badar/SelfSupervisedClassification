@@ -33,9 +33,10 @@ class Serbia(Dataset):
     normalize = torchvision.transforms.Normalize(mean, std)
 
 
-    def __init__(self, lmdb_directory:Path = Path('../bigearth_subset_lmdb'), split:str='train', augmentation=True, augmentation_count=default_augmentation_count):
+    def __init__(self, lmdb_directory:Path = Path('../bigearth_subset_lmdb'), split:str='train', augmentation=True, augementation_type = 1, augmentation_count=default_augmentation_count):
         self.split = split
         self.augmentation = augmentation
+        self.augmentation_type = augementation_type
         self.augmentation_count = augmentation_count
         self.data_keys = []
 
@@ -73,23 +74,24 @@ class Serbia(Dataset):
 
         x = torch.empty((self.augmentation_count,) + processed.shape)
         if self.augmentation:
-            # indexes = torch.randperm(8)[:self.augmentation_count]
-            #
-            # hflipped = None
-            # for i, ind in enumerate(indexes):
-            #     img = None
-            #     if ind / 4 == 1:
-            #         img = hflipped = hflip(processed) if hflipped == None else hflipped
-            #     else:
-            #         img = processed
-            #
-            #     x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
+            if self.augmentation_type == 1:
+                indexes = torch.randperm(8)[:self.augmentation_count]
 
-            no_splits = torch.tensor([4, 4])
-            image_size = torch.tensor([Serbia.size[0], Serbia.size[1]])
-            split_size = (image_size / no_splits).int()
-            for i in range(self.augmentation_count):
-                x[i] = processed.unfold(1, split_size[0], split_size[0]).unfold(2, split_size[1], split_size[1]).reshape([-1, no_splits.prod(), split_size[0], split_size[1]])[:, torch.randperm(no_splits.prod())].unfold(1, no_splits[0], no_splits[0]).permute([0, 4, 2, 1, 3]).reshape(-1, image_size[0], image_size[1])
+                hflipped = None
+                for i, ind in enumerate(indexes):
+                    img = None
+                    if ind / 4 == 1:
+                        img = hflipped = hflip(processed) if hflipped == None else hflipped
+                    else:
+                        img = processed
+
+                    x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
+            elif self.augmentation_type == 2:
+                no_splits = torch.tensor([4, 4])
+                image_size = torch.tensor([Serbia.size[0], Serbia.size[1]])
+                split_size = (image_size / no_splits).int()
+                for i in range(self.augmentation_count):
+                    x[i] = processed.unfold(1, split_size[0], split_size[0]).unfold(2, split_size[1], split_size[1]).reshape([-1, no_splits.prod(), split_size[0], split_size[1]])[:, torch.randperm(no_splits.prod())].unfold(1, no_splits[0], no_splits[0]).permute([0, 4, 2, 1, 3]).reshape(-1, image_size[0], image_size[1])
 
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
