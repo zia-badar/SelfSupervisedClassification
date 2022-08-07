@@ -24,7 +24,7 @@ def func_3(args):
 
 class Serbia(Dataset):
 
-    size = 120, 120
+    size = 128, 128
     resize = torchvision.transforms.Resize(size, interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
     default_augmentation_count = 4
 
@@ -73,17 +73,23 @@ class Serbia(Dataset):
 
         x = torch.empty((self.augmentation_count,) + processed.shape)
         if self.augmentation:
-            indexes = torch.randperm(8)[:self.augmentation_count]
+            # indexes = torch.randperm(8)[:self.augmentation_count]
+            #
+            # hflipped = None
+            # for i, ind in enumerate(indexes):
+            #     img = None
+            #     if ind / 4 == 1:
+            #         img = hflipped = hflip(processed) if hflipped == None else hflipped
+            #     else:
+            #         img = processed
+            #
+            #     x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
 
-            hflipped = None
-            for i, ind in enumerate(indexes):
-                img = None
-                if ind / 4 == 1:
-                    img = hflipped = hflip(processed) if hflipped == None else hflipped
-                else:
-                    img = processed
-
-                x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
+            no_splits = torch.tensor([4, 4])
+            image_size = torch.tensor([Serbia.size[0], Serbia.size[1]])
+            split_size = (image_size / no_splits).int()
+            for i in range(self.augmentation_count):
+                x[i] = processed.unfold(1, split_size[0], split_size[0]).unfold(2, split_size[1], split_size[1]).reshape([-1, no_splits.prod(), split_size[0], split_size[1]])[:, torch.randperm(no_splits.prod())].unfold(1, no_splits[0], no_splits[0]).permute([0, 4, 2, 1, 3]).reshape(-1, image_size[0], image_size[1])
 
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
