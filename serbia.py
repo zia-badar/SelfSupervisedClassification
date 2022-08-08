@@ -87,11 +87,15 @@ class Serbia(Dataset):
 
                     x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
             elif self.augmentation_type == 2:
+                percentage_to_mask = 0.2
                 no_splits = torch.tensor([4, 4])
                 image_size = torch.tensor([Serbia.size[0], Serbia.size[1]])
                 split_size = (image_size / no_splits).int()
                 for i in range(self.augmentation_count):
-                    x[i] = processed.unfold(1, split_size[0], split_size[0]).unfold(2, split_size[1], split_size[1]).reshape([-1, no_splits.prod(), split_size[0], split_size[1]])[:, torch.randperm(no_splits.prod())].unfold(1, no_splits[0], no_splits[0]).permute([0, 4, 2, 1, 3]).reshape(-1, image_size[0], image_size[1])
+                    a = processed.unfold(1, split_size[0], split_size[0]).unfold(2, split_size[1], split_size[1]).reshape([-1, no_splits.prod(), split_size[0], split_size[1]])[:, torch.randperm(no_splits.prod())]
+                    a[:, torch.randperm(no_splits.prod())[:(int)(percentage_to_mask*no_splits.prod())]] = 0
+                    a = a.unfold(1, no_splits[0], no_splits[0]).permute([0, 4, 2, 1, 3]).reshape(-1, image_size[0], image_size[1])
+                    x[i] = a
 
         labels = torch.zeros(Patch.classes)
         labels[patch.labels] = 1
