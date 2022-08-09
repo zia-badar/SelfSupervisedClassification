@@ -71,7 +71,7 @@ def get_percent_dataloader_from_dataset(dataset, percent=100):          # make s
 
     return percent_dataloader
 
-training_percentages = list(np.arange(1, 21)) + [100]
+training_percentages = list(np.round(np.arange(0.1, 1, 0.1), 2)) + list(np.arange(1, 21)) + [100]
 
 if __name__ == '__main__':
     no_workers = 40
