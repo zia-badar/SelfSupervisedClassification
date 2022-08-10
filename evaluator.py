@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torchmetrics import Metric
 from tqdm import tqdm
 
-import dcl_loss
+from classifier import ContrastiveWeightedKNN
 from metrics import Loss
 from patch import Patch
 
@@ -22,7 +22,8 @@ class Evaluator():
         self.evaluations_directory = evaluations_directory
         self.models_directory = models_directory
 
-    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module], model_wrapper=None, percentages=[None]):
+    def evaluate(self, dataloaders: dict[str, DataLoader], metrics: list[Metric], model_class: Type[nn.Module],
+                 model_wrapper=None, percentages=[None]):
         self.dataloader_names = list(dataloaders.keys())
         dataloaders = dataloaders.values()
         self.metric_names = [m.name for m in metrics]
@@ -30,12 +31,11 @@ class Evaluator():
         models = list(map(lambda path: (len(str(path)), str(path)), list((self.models_directory).glob('*'))))
         models.sort()
         models = list(map(lambda t: t[1], models))
-        if len(models) > 1:         # sorting models
+        if len(models) > 1:  # sorting models
             dict = {}
             for m in models:
                 dict[(float)(m.rsplit('_', 1)[1])] = m
             models = list(collections.OrderedDict(sorted(dict.items())).values())
-
 
         self.x = [(float)(model_name.rsplit('_', 1)[1]) for model_name in models] if len(models) > 1 else percentages
 
@@ -43,7 +43,9 @@ class Evaluator():
             print('error: one of models or percentage should be of size 1')
             exit(-1)
 
-        self.metrics_evaluation = [[[[0 for _ in range(len(models))] for _ in range(len(percentages))] for _ in range(len(dataloaders))] for _ in range(len(metrics))]
+        self.metrics_evaluation = [
+            [[[0 for _ in range(len(models))] for _ in range(len(percentages))] for _ in range(len(dataloaders))] for _
+            in range(len(metrics))]
 
         with torch.no_grad():
             for i, model_path in enumerate(tqdm(models, position=0, desc='models')):
@@ -55,8 +57,8 @@ class Evaluator():
                 model = model_wrapper(model) if model_wrapper != None else model
 
                 for j, percent in enumerate(tqdm(percentages, position=1, leave=False, desc='percentage')):
-                    if isinstance(model, dcl_loss.DCL_classifier):
-                        model.train_subset_ratio = percent/100.
+                    if isinstance(model, ContrastiveWeightedKNN):
+                        model.train_subset_ratio = percent / 100.
 
                     for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
                         for metric in metrics:
@@ -80,16 +82,17 @@ class Evaluator():
         evaluations = list(map(lambda path: (len(str(path)), str(path)), list(self.evaluations_directory.glob('*'))))
         evaluations.sort()
         evaluations = list(map(lambda t: str(t[1]), evaluations))
-        return None if len(evaluations) == 0 else  evaluations[-1]
+        return None if len(evaluations) == 0 else evaluations[-1]
 
-    def save(self, name = None):
+    def save(self, name=None):
         if name == None:
             latest_evaluation_name = self.get_latest_evaluation_path()
-            new_evaluation_name = 'evaluation_' + str(1 if latest_evaluation_name == None else str(int(latest_evaluation_name.rsplit('_', 1)[1]) + 1))
+            new_evaluation_name = 'evaluation_' + str(
+                1 if latest_evaluation_name == None else str(int(latest_evaluation_name.rsplit('_', 1)[1]) + 1))
         else:
             new_evaluation_name = name
 
-        with open(str( self.evaluations_directory / new_evaluation_name), 'wb') as fout:
+        with open(str(self.evaluations_directory / new_evaluation_name), 'wb') as fout:
             pk.dump(self, fout)
 
     def load(self, n=-1):
@@ -105,10 +108,10 @@ class Evaluator():
         with open(str(evaluation_path), 'rb') as fin:
             return pk.load(fin)
 
-    def load(path:Path):
+    def load(path: Path):
         with open(str(path), 'rb') as fin:
             return pk.load(fin)
-        
+
     def flat_list(listoflist):
         return [item for list in listoflist for item in list]
 
@@ -129,12 +132,17 @@ class Evaluator():
                         eval = np.array(torch.stack(Evaluator.flat_list(dl_metric_evaluation)).cpu())
                         classnames = list(Patch._19_label_to_index.keys())
                         for c in range(Patch.classes):
-                            current_axis = axis[int(c/7), c%7]
-                            current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
-                            current_axis.set_title(classnames[c] if len(classnames[c]) < 15 else (classnames[c][:15]) + "...", color=('#cc3300' if evaluator_name == critical_evaluator_name and eval[:, c].sum() < 0.1 else '#339900'))
+                            current_axis = axis[int(c / 7), c % 7]
+                            current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}, {dl_name}',
+                                              alpha=0.7)
+                            current_axis.set_title(
+                                classnames[c] if len(classnames[c]) < 15 else (classnames[c][:15]) + "...", color=(
+                                    '#cc3300' if evaluator_name == critical_evaluator_name and eval[:,
+                                                                                               c].sum() < 0.1 else '#339900'))
                             current_axis.grid(True, alpha=0.3)
                     else:
-                        pyplot.plot(evaluator.x[:-1], np.array(torch.tensor(dl_metric_evaluation)).reshape(-1)[:-1], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                        pyplot.plot(evaluator.x[:-1], np.array(torch.tensor(dl_metric_evaluation)).reshape(-1)[:-1],
+                                    label=f'{evaluator_name}, {dl_name}', alpha=0.7)
                         pyplot.xticks(evaluator.x[:-1])
                         pyplot.xlabel('percentage')
                         pyplot.ylabel(metric_name)

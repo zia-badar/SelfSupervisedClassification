@@ -1,6 +1,4 @@
-import copy
 import re
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -9,8 +7,8 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from model import Model
-from serbia import Serbia
+from dataset import BigEarthDataset
+from model import SupervisedModel
 
 
 def get_batch_size(modelCLass, dataset):
@@ -32,7 +30,8 @@ def get_batch_size(modelCLass, dataset):
                         break
                     yield batch
 
-            dataloader = dataloader_wrapper(DataLoader(dataset, batch_size=new_batch_size, shuffle=True, drop_last=True, pin_memory=True))
+            dataloader = dataloader_wrapper(
+                DataLoader(dataset, batch_size=new_batch_size, shuffle=True, drop_last=True, pin_memory=True))
 
             model.train()
             for x, l in dataloader:
@@ -53,23 +52,27 @@ def get_batch_size(modelCLass, dataset):
     min, max, = 1, batch_size
     best_batch_size = min
     while min <= max:
-        mid = (int)((min + max)/2)
+        mid = (int)((min + max) / 2)
         if possible(mid):
             best_batch_size = mid
             min = mid + 1
         else:
             max = mid - 1
 
-        torch.cuda.empty_cache()            # avoid cluter of previous iterations on gpu
+        torch.cuda.empty_cache()  # avoid cluter of previous iterations on gpu
 
     return best_batch_size
 
-def get_percent_dataloader_from_dataset(dataset, percent=100):          # make sure batch_size and no_worker is in scope from where this function is being called
+
+def get_percent_dataloader_from_dataset(dataset,
+                                        percent=100):  # make sure batch_size and no_worker is in scope from where this function is being called
     subset_size = (int)(len(dataset) * percent / 100)
     percent_dataset = random_split(dataset, [subset_size, len(dataset) - subset_size])[0]
-    percent_dataloader = DataLoader(percent_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, pin_memory=True)
+    percent_dataloader = DataLoader(percent_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True,
+                                    pin_memory=True)
 
     return percent_dataloader
+
 
 training_percentages = list(np.round(np.arange(0.1, 1, 0.1), 2)) + list(np.arange(1, 21)) + [100]
 
@@ -80,7 +83,7 @@ if __name__ == '__main__':
     evaluation_directory = results_directory / 'evaluations'
     continue_training = False
 
-    train_dataset = Serbia(split='train', augementation_type=1, augmentation_count=1)
+    train_dataset = BigEarthDataset(split='train', augementation_type=1, augmentation_count=1)
     batch_size = 256
 
     percentages = training_percentages
@@ -94,19 +97,19 @@ if __name__ == '__main__':
 
     loss_func = torch.nn.BCEWithLogitsLoss()
 
-    best_early_stop_epoch = 27                      # calculated by plotting validation loss over percent and epoch
+    best_early_stop_epoch = 27  # calculated by plotting validation loss over percent and epoch
     percent_tqdm = tqdm(percentages, position=1)
     for percent in percent_tqdm:
         percent = np.round(percent, 2)
         percent_tqdm.set_description(f"percentage of data for training: {percent}")
-        model = Model()
+        model = SupervisedModel()
         model = model.cuda()
         model = nn.DataParallel(model)
         optim = torch.optim.Adam(model.parameters())
 
         train_dataloader = get_percent_dataloader_from_dataset(train_dataset, percent)
 
-        for epoch in range(1, best_early_stop_epoch+1):
+        for epoch in range(1, best_early_stop_epoch + 1):
             model.train()
             for x, l in tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False):
                 optim.zero_grad()
