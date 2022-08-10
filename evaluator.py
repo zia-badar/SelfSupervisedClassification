@@ -115,16 +115,22 @@ class Evaluator():
     def flat_list(listoflist):
         return [item for list in listoflist for item in list]
 
-    def plot(evaluator_names, evaluators, critical_evaluator_name=None):
+    def plot(evaluator_names, evaluators,
+             critical_evaluator_name=None):  # this function is only intended for plotting required plots, not for any kind of reuse, because plot requirements always changes and useless to write plot generalize code
         metric_names = evaluators[0].metric_names
 
-        pyplot.rcParams.update({'font.size': 20})
+        class_percentage = 100 * torch.tensor([15790., 100394., 1197., 73411., 1037., 53534., 86569., 6182.,
+                                               35349., 11620., 67260., 39114., 91930., 8438., 6663., 50981.,
+                                               15862., 77593., 38783.]) / 269695.
+
         for i, metric_name in enumerate(metric_names):
             if metric_name.endswith('per class'):
-                fig, axis = pyplot.subplots(3, 7, figsize=(30, 20), dpi=100)
+                pyplot.rcParams.update({'font.size': 20})
+                fig, axis = pyplot.subplots(5, 4, figsize=(30, 20), dpi=100)
             else:
-                pyplot.figure(figsize=(30, 20))
-                pyplot.title(f'{metric_name}')
+                pyplot.rcParams.update({'font.size': 30})
+                fig, axes = pyplot.subplots(1, 2, figsize=(40, 20), gridspec_kw={'width_ratios': [9, 1]}, sharey=True,
+                                            dpi=100)
 
             for evaluator_name, evaluator in zip(evaluator_names, evaluators):
                 for dl_name, dl_metric_evaluation in zip(evaluator.dataloader_names, evaluator.metrics_evaluation[i]):
@@ -132,34 +138,59 @@ class Evaluator():
                         eval = np.array(torch.stack(Evaluator.flat_list(dl_metric_evaluation)).cpu())
                         classnames = list(Patch._19_label_to_index.keys())
                         for c in range(Patch.classes):
-                            current_axis = axis[int(c / 7), c % 7]
+                            current_axis = axis[int(c / 4), c % 4]
                             current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}, {dl_name}',
                                               alpha=0.7)
                             current_axis.set_title(
-                                classnames[c] if len(classnames[c]) < 15 else (classnames[c][:15]) + "...", color=(
+                                (classnames[c] if len(classnames[c]) < 15 else (classnames[c][
+                                                                                :15]) + "...") + f' {"{:.1f}".format(class_percentage[c].item())}% samples',
+                                color=(
                                     '#cc3300' if evaluator_name == critical_evaluator_name and eval[:,
                                                                                                c].sum() < 0.1 else '#339900'))
                             current_axis.grid(True, alpha=0.3)
                     else:
-                        pyplot.plot(evaluator.x[:-1], np.array(torch.tensor(dl_metric_evaluation)).reshape(-1)[:-1],
-                                    label=f'{evaluator_name}, {dl_name}', alpha=0.7)
-                        pyplot.xticks(evaluator.x[:-1])
-                        pyplot.xlabel('percentage')
-                        pyplot.ylabel(metric_name)
-                        pyplot.yticks(np.arange(0, 1.1, 0.1))
-                        pyplot.ylim([-0.1, 1.1])
-                        pyplot.grid(True, alpha=0.3)
+                        axes[0].plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1),
+                                     label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                        axes[1].plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1),
+                                     label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                        axes[0].set_xlim(0, evaluator.x[-2])
+                        axes[1].set_xlim(evaluator.x[-2], evaluator.x[-1])
+                        axes[0].set_ylim(0, 1)
+                        axes[1].set_ylim(0, 1)
+                        axes[0].set_xticks(np.arange(1, evaluator.x[-2] + 1))
+                        axes[1].set_xticks(evaluator.x[-2:])
+                        axes[0].set_yticks(np.arange(0, 1.1, 0.1))
+                        axes[0].spines['right'].set_visible(False)
+                        axes[1].spines['left'].set_visible(False)
+                        axes[1].yaxis.tick_right()
+                        axes[0].grid(True, alpha=0.3)
+                        axes[1].grid(True, alpha=0.3)
+                        d = .03
+                        kwargs = dict(transform=axes[0].transAxes, color='k', clip_on=False)
+                        axes[0].plot((1 - d / 9, 1 + d / 9), (1 - d, 1 + d), **kwargs)
+                        axes[0].plot((1 - d / 9, 1 + d / 9), (-d, +d), **kwargs)
+
+                        kwargs.update(transform=axes[1].transAxes)
+                        axes[1].plot((-d, +d), (1 - d, 1 + d), **kwargs)
+                        axes[1].plot((-d, +d), (- d, + d), **kwargs)
 
             if metric_name.endswith('per class'):
-                pyplot.setp(axis, xticks=evaluator.x[:-1], yticks=np.arange(0.0, 1.1, 0.1), ylim=[-0.1, 1.2])
-                fig.suptitle(metric_name, fontsize=50)
-                fig.supxlabel('percentage')
-                fig.supylabel(metric_name)
+                pyplot.setp(axis, xticks=np.arange(0, evaluator.x[-2] + 1, 5), yticks=np.arange(0.0, 1.1, 0.5),
+                            ylim=[-0.1, 1.2])
+                fig.suptitle(metric_name)
+                fig.supxlabel('percentage of labelled data used')
+                fig.supylabel(metric_name, x=0.01)
                 lines, labels = axis[0, 0].get_legend_handles_labels()
-                fig.legend(lines, labels, loc='upper right')
-                fig.tight_layout()
+                fig.legend(lines, labels, loc=(0.8, 0.06))
+                axis[-1, -1].axis('off')
+            else:
+                fig.suptitle(metric_name)
+                fig.supxlabel('percentage of labelled data used')
+                fig.supylabel(metric_name, x=0.01)
+                lines, labels = axes[0].get_legend_handles_labels()
+                fig.legend(lines, labels, loc=(0.06, 0.8), framealpha=0.7)
 
-            pyplot.legend()
+            fig.tight_layout()
             pyplot.show()
 
     def __repr__(self):
