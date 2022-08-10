@@ -56,7 +56,7 @@ if __name__ == '__main__':
     no_workers = 40
 
     train_dataset = Serbia(split='train', augementation_type=1, augmentation_count=1)
-    batch_size = get_batch_size(dcl_model.Model, train_dataset) - 40
+    batch_size = get_batch_size(dcl_model.Model, train_dataset)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, drop_last=True, pin_memory=True)
 
     test_dataset = Serbia(split='test', augementation_type=1, augmentation_count=1)
@@ -97,6 +97,7 @@ if __name__ == '__main__':
     self_supervised_evaluation_directory = self_supervised_result_directory / 'evaluations'
     self_supervised_model_directory = self_supervised_result_directory / 'models'
     self_supervised_evaluation_name = 'self-supervised'
+    self_supervised_random_evaluation_name = 'self-supervised_random'
 
     evaluator = Evaluator(self_supervised_evaluation_directory, self_supervised_model_directory)
     dataloaders = {'test': test_dataloader}
@@ -122,4 +123,4 @@ if __name__ == '__main__':
     evaluator.save(self_supervised_evaluation_name)
 
 
-    Evaluator.plot([supervised_evaluation_name, self_supervised_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name), Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name)], critical_evaluator_name = self_supervised_evaluation_name)
+    Evaluator.plot([supervised_evaluation_name, self_supervised_evaluation_name, self_supervised_random_evaluation_name], [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name), Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name), Evaluator.load(self_supervised_evaluation_directory / self_supervised_random_evaluation_name)])

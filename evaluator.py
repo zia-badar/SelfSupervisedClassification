@@ -130,12 +130,12 @@ class Evaluator():
                         classnames = list(Patch._19_label_to_index.keys())
                         for c in range(Patch.classes):
                             current_axis = axis[int(c/7), c%7]
-                            current_axis.plot(evaluator.x, eval[:, c], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                            current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
                             current_axis.set_title(classnames[c] if len(classnames[c]) < 15 else (classnames[c][:15]) + "...", color=('#cc3300' if evaluator_name == critical_evaluator_name and eval[:, c].sum() < 0.1 else '#339900'))
                             current_axis.grid(True, alpha=0.3)
                     else:
-                        pyplot.plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1), label=f'{evaluator_name}, {dl_name}', alpha=0.7)
-                        pyplot.xticks(evaluator.x)
+                        pyplot.plot(evaluator.x[:-1], np.array(torch.tensor(dl_metric_evaluation)).reshape(-1)[:-1], label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                        pyplot.xticks(evaluator.x[:-1])
                         pyplot.xlabel('percentage')
                         pyplot.ylabel(metric_name)
                         pyplot.yticks(np.arange(0, 1.1, 0.1))
@@ -143,7 +143,7 @@ class Evaluator():
                         pyplot.grid(True, alpha=0.3)
 
             if metric_name.endswith('per class'):
-                pyplot.setp(axis, xticks=evaluator.x, yticks=np.arange(0.0, 1.1, 0.1), ylim=[-0.1, 1.2])
+                pyplot.setp(axis, xticks=evaluator.x[:-1], yticks=np.arange(0.0, 1.1, 0.1), ylim=[-0.1, 1.2])
                 fig.suptitle(metric_name, fontsize=50)
                 fig.supxlabel('percentage')
                 fig.supylabel(metric_name)
