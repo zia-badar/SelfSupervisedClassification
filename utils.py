@@ -24,7 +24,7 @@ def func_1(args):
 
 def generate_subset_from_bigearth(big_earth_dataset_path=Path('/BigEarthNet-v1.0/'),
                                   big_eath_meta_parquet_path=Path('/extended_ben_gdf.parquet'),
-                                  serbia_dataset_path=Path('../bigearth_subset/')):
+                                  dataset_path=Path('../bigearth_subset/')):
     gdf = gp.read_parquet(str(big_eath_meta_parquet_path))
     gdf = gdf[gdf.snow != True]
     gdf = gdf[gdf.cloud_or_shadow != True]
@@ -32,14 +32,14 @@ def generate_subset_from_bigearth(big_earth_dataset_path=Path('/BigEarthNet-v1.0
     with Pool(processes=20) as pool:
         def gen_wrapper():
             for _, row in gdf.iterrows():
-                yield row, big_earth_dataset_path, serbia_dataset_path
+                yield row, big_earth_dataset_path, dataset_path
 
         for _ in pool.imap_unordered(func_1, tqdm(gen_wrapper(), total=len(gdf)), chunksize=1024):
             pass
 
     print(
         f'[train, validation, test] = [{len(gdf[gdf.original_split == "train"])}, {len(gdf[gdf.original_split == "validation"])}, {len(gdf[gdf.original_split == "test"])}]')
-    print('dataset generated in folder: ' + str(serbia_dataset_path))
+    print('dataset generated in folder: ' + str(dataset_path))
 
 
 def func_2(args):

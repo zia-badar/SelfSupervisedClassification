@@ -139,7 +139,7 @@ class Evaluator():
                         classnames = list(Patch._19_label_to_index.keys())
                         for c in range(Patch.classes):
                             current_axis = axis[int(c / 4), c % 4]
-                            current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}, {dl_name}',
+                            current_axis.plot(evaluator.x[:-1], eval[:, c][:-1], label=f'{evaluator_name}',
                                               alpha=0.7)
                             current_axis.set_title(
                                 (classnames[c] if len(classnames[c]) < 15 else (classnames[c][
@@ -150,9 +150,9 @@ class Evaluator():
                             current_axis.grid(True, alpha=0.3)
                     else:
                         axes[0].plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1),
-                                     label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                                     label=f'{evaluator_name}', alpha=0.7)
                         axes[1].plot(evaluator.x, np.array(torch.tensor(dl_metric_evaluation)).reshape(-1),
-                                     label=f'{evaluator_name}, {dl_name}', alpha=0.7)
+                                     label=f'{evaluator_name}', alpha=0.7)
                         axes[0].set_xlim(0, evaluator.x[-2])
                         axes[1].set_xlim(evaluator.x[-2], evaluator.x[-1])
                         axes[0].set_ylim(0, 1)
