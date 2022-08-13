@@ -1,3 +1,4 @@
+import copy
 import re
 from pathlib import Path
 
@@ -86,6 +87,9 @@ if __name__ == '__main__':
     train_dataset = BigEarthDataset(split='train', augementation_type=1, augmentation_count=1)
     batch_size = 256
 
+    validation_dataset = BigEarthDataset(split='validation', augementation_type=1, augmentation_count=1)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, num_workers=no_workers, shuffle=True, pin_memory=True)
+
     percentages = training_percentages
     if continue_training:
         saved_models = [(len(str(path)), str(path)) for path in models_directory.glob('*')]
@@ -97,7 +101,8 @@ if __name__ == '__main__':
 
     loss_func = torch.nn.BCEWithLogitsLoss()
 
-    best_early_stop_epoch = 27  # calculated by plotting validation loss over percent and epoch
+    early_stop_max_patience = 3
+    early_stop_period = 4
     percent_tqdm = tqdm(percentages, position=1)
     for percent in percent_tqdm:
         percent = np.round(percent, 2)
@@ -109,7 +114,10 @@ if __name__ == '__main__':
 
         train_dataloader = get_percent_dataloader_from_dataset(train_dataset, percent)
 
-        for epoch in range(1, best_early_stop_epoch + 1):
+        best_early_stop_model = copy.deepcopy(model)
+        last_val_loss = np.inf
+        early_stop_current_patience = 0
+        for epoch in range(1, 1000):
             model.train()
             for x, l in tqdm(train_dataloader, desc=f'training epoch: {epoch}', position=2, leave=False):
                 optim.zero_grad()
@@ -121,4 +129,20 @@ if __name__ == '__main__':
                 loss.backward()
                 optim.step()
 
-        torch.save(model.state_dict(), str(models_directory / f'supervised_{"{:.2f}".format(percent)}'))
+            if epoch % early_stop_period == 0:
+                with torch.no_grad():
+                    model.eval()
+                    vloss = 0
+                    for x, l in tqdm(validation_dataloader, desc=f'validating for early stop', position=3):
+                        vloss += loss_func(model(x[:, 0].cuda()), l.cuda())
+
+                    if vloss < last_val_loss:
+                        best_early_stop_model = copy.deepcopy(model)
+                        early_stop_current_patience = 0
+                        last_val_loss = vloss
+                    else:
+                        early_stop_current_patience += 1
+                        if early_stop_current_patience == early_stop_max_patience:
+                            break
+
+        torch.save(best_early_stop_model.state_dict(), str(models_directory / f'supervised_{"{:.2f}".format(percent)}'))
