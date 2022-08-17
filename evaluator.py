@@ -59,6 +59,7 @@ class Evaluator():
                 for j, percent in enumerate(tqdm(percentages, position=1, leave=False, desc='percentage')):
                     if isinstance(model, ContrastiveWeightedKNN):
                         model.train_subset_ratio = percent / 100.
+                        model.shuffle()
 
                     for k, dataloader in enumerate(tqdm(dataloaders, position=2, leave=False, desc='dataloaders')):
                         for metric in metrics:
