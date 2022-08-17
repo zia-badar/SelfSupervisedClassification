@@ -12,10 +12,10 @@ class ContrastiveWeightedKNN():
         self.train_x, self.train_y = train
         self.train_subset_ratio = train_subset_ratio
         self.k = k
-
-    def w_knn(self, test_x):
         self.train_x = self.train_x[torch.randperm(self.train_x.shape[0])]
         self.train_y = self.train_y[torch.randperm(self.train_y.shape[0])]
+
+    def w_knn(self, test_x):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]
         train_y = self.train_y[:(int)(self.train_subset_ratio * len(self.train_y))]
 
