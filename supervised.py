@@ -101,8 +101,8 @@ if __name__ == '__main__':
 
     loss_func = torch.nn.BCEWithLogitsLoss()
 
-    early_stop_max_patience = 3
-    early_stop_period = 4
+    early_stop_period = 5
+    early_stop_max_patience = 6
     percent_tqdm = tqdm(percentages, position=1)
     for percent in percent_tqdm:
         percent = np.round(percent, 2)

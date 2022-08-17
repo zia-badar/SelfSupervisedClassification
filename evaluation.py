@@ -9,7 +9,7 @@ import supervised
 from classifier import ContrastiveWeightedKNN
 from dataset import BigEarthDataset
 from evaluator import Evaluator
-from metrics import CustomAccuracy, Precision, Recall, F1_Score
+from metrics import CustomAccuracy, Precision, Recall, F1_Score, MetricAggregator
 from model import SupervisedModel, SelfSupervisedModel
 
 
@@ -57,17 +57,19 @@ if __name__ == '__main__':
 
     no_workers = 40
 
+    metricAggregator = MetricAggregator().cuda()
     metrics = [
+        metricAggregator,
         CustomAccuracy().cuda(),
-        Precision('micro').cuda(),
-        Precision('macro').cuda(),
-        Precision('per class').cuda(),
-        Recall('micro').cuda(),
-        Recall('macro').cuda(),
-        Recall('per class').cuda(),
-        F1_Score('micro').cuda(),
-        F1_Score('macro').cuda(),
-        F1_Score('per class').cuda()
+        Precision(metricAggregator, 'micro').cuda(),
+        Precision(metricAggregator, 'macro').cuda(),
+        Precision(metricAggregator, 'per class').cuda(),
+        Recall(metricAggregator, 'micro').cuda(),
+        Recall(metricAggregator, 'macro').cuda(),
+        Recall(metricAggregator, 'per class').cuda(),
+        F1_Score(metricAggregator, 'micro').cuda(),
+        F1_Score(metricAggregator, 'macro').cuda(),
+        F1_Score(metricAggregator, 'per class').cuda()
     ]
 
     # supervised evaluation

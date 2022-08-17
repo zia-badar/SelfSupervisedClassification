@@ -12,7 +12,7 @@ from torchmetrics import Metric
 from tqdm import tqdm
 
 from classifier import ContrastiveWeightedKNN
-from metrics import Loss
+from metrics import Loss, MetricAggregator
 from patch import Patch
 
 
@@ -134,6 +134,9 @@ class Evaluator():
 
             for evaluator_name, evaluator in zip(evaluator_names, evaluators):
                 for dl_name, dl_metric_evaluation in zip(evaluator.dataloader_names, evaluator.metrics_evaluation[i]):
+                    if metric_name == MetricAggregator.name:
+                        continue
+
                     if metric_name.endswith('per class'):
                         eval = np.array(torch.stack(Evaluator.flat_list(dl_metric_evaluation)).cpu())
                         classnames = list(Patch._19_label_to_index.keys())

@@ -3,6 +3,37 @@ from torchmetrics import Metric
 
 from patch import Patch
 
+class MetricAggregator(Metric):             # make sure this metric is reset when all metrics dependent on it are done using it
+    name = 'aggregator metric'
+    full_state_update = False
+
+    def __init__(self):
+        super().__init__()
+        self.add_state('tp', default=torch.zeros(Patch.classes, dtype=torch.int))
+        self.add_state('fp', default=torch.zeros(Patch.classes, dtype=torch.int))
+        self.add_state('tn', default=torch.zeros(Patch.classes, dtype=torch.int))
+        self.add_state('fn', default=torch.zeros(Patch.classes, dtype=torch.int))
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        preds = preds.cuda(non_blocking=True).sigmoid().round()
+        target = target.cuda(non_blocking=True)
+
+        preds = preds.type(torch.int)
+        target = target.type(torch.int)
+
+        tp = torch.sum(preds * target, dim=0)
+        fp = torch.sum((preds == True) * (target == False), dim=0)
+        tn = torch.sum((preds == False) * (target == False), dim=0)
+        fn = torch.sum((preds == False) * (target == True), dim=0)
+
+        self.tp += tp
+        self.fp += fp
+        self.tn += tn
+        self.fn += fn
+
+    def compute(self):
+        return self.tp, self.fp, self.tn, self.fn
+
 
 class CustomAccuracy(Metric):         # as recommended by lars, TP/(TP+FP+FN)
     name = 'TP/(TP+FP+FN) Metric'
@@ -29,76 +60,67 @@ class CustomAccuracy(Metric):         # as recommended by lars, TP/(TP+FP+FN)
 class Precision(Metric):
     full_state_update = False
 
-    def __init__(self, type='micro'):
+    def __init__(self, metricAggregator: MetricAggregator, type='micro'):
         super().__init__()
-        self.add_state("numerator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
-        self.add_state("denominator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.metricAggregator = metricAggregator
         self.type = type
         self.name = 'Precision(TP/(TP+FP)) ' + self.type
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        preds = preds.cuda(non_blocking=True).sigmoid().round()
-        target = target.cuda(non_blocking=True)
+        pass    # compute metric aggreator only
 
-        tp = torch.sum(preds * target, dim=0)
-        fp = torch.sum((preds == True) * (target == False), dim=0)
-
-        self.numerator += tp
-        self.denominator += tp+fp
 
     def compute(self):
+        tp, fp, tn, fn = self.metricAggregator.compute()
+        numerator = tp
+        denominator = tp+fp
         result = 0
         if self.type == 'micro':
-            result = torch.nan_to_num(self.numerator.sum() / self.denominator.sum(), nan=0)
+            result = torch.nan_to_num(numerator.sum() / denominator.sum(), nan=0)
         elif self.type == 'macro':
-            result = (torch.nan_to_num(self.numerator / self.denominator, nan=0).sum() / self.numerator.shape[0])
+            result = (torch.nan_to_num(numerator / denominator, nan=0).sum() / numerator.shape[0])
         elif self.type == 'per class':
-            result = torch.nan_to_num(self.numerator / self.denominator, nan=0)
+            result = torch.nan_to_num(numerator / denominator, nan=0)
         return result
 
 class Recall(Metric):
     full_state_update = False
 
-    def __init__(self, type='micro'):
+    def __init__(self, metricAggregator: MetricAggregator, type='micro'):
         super().__init__()
-        self.add_state("numerator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
-        self.add_state("denominator", default=torch.zeros(Patch.classes, dtype=torch.float32), dist_reduce_fx="sum")
+        self.metricAggregator = metricAggregator
         self.type = type
         self.name = 'Recall(TP/(TP+FN)) ' + self.type
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        preds = preds.cuda(non_blocking=True).sigmoid().round()
-        target = target.cuda(non_blocking=True)
-
-        tp = torch.sum(preds * target, dim=0)
-        fn = torch.sum((preds == False) * (target == True), dim=0)
-
-        self.numerator += tp
-        self.denominator += tp+fn
+        pass    # compute metric aggreator only
 
     def compute(self):
+        tp, fp, tn, fn = self.metricAggregator.compute()
+        numerator = tp
+        denominator = tp+fp
         result = 0
         if self.type == 'micro':
-            result = torch.nan_to_num(self.numerator.sum() / self.denominator.sum(), nan=0)
+            result = torch.nan_to_num(numerator.sum() / denominator.sum(), nan=0)
         elif self.type == 'macro':
-            result = (torch.nan_to_num(self.numerator / self.denominator, nan=0).sum() / self.numerator.shape[0])
+            result = (torch.nan_to_num(numerator / denominator, nan=0).sum() / numerator.shape[0])
         elif self.type == 'per class':
-            result = torch.nan_to_num(self.numerator / self.denominator, nan=0)
+            result = torch.nan_to_num(numerator / denominator, nan=0)
         return result
 
 class F1_Score(Metric):
     full_state_update = False
 
-    def __init__(self, type='micro'):
+    def __init__(self, metricAggregator: MetricAggregator, type='micro'):
         super().__init__()
+        self.metricAggregator = metricAggregator
         self.type = type
         self.name = 'F1_Score(2*precision*recall/(precision+recall)) ' + self.type
-        self.precision = Precision(self.type).cuda()
-        self.recall = Recall(self.type).cuda()
+        self.precision = Precision(self.metricAggregator, self.type).cuda()
+        self.recall = Recall(self.metricAggregator, self.type).cuda()
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.precision.update(preds, target)
-        self.recall.update(preds, target)
+        pass    # compute metric aggreator only
 
     def compute(self):
         precision = self.precision.compute()
@@ -106,8 +128,8 @@ class F1_Score(Metric):
         return torch.nan_to_num(2 * (precision * recall) / (precision + recall), nan=0)
 
     def reset(self):
-        self.precision = Precision(self.type).cuda()
-        self.recall = Recall(self.type).cuda()
+        self.precision = Precision(self.metricAggregator, self.type).cuda()
+        self.recall = Recall(self.metricAggregator, self.type).cuda()
 
 class Loss(Metric):
     name = 'Loss'
