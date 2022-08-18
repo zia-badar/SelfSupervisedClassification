@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
     # plotting
     Evaluator.plot(
-        ['supervised', 'contrastive repr + wknn', 'random repr + wknn'],
+        ['supervised', 'contrastive repr + wknn'],
         [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name),
-         Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name),
-         Evaluator.load(self_supervised_evaluation_directory / self_supervised_random_evaluation_name)])
+         Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name)
+         ])
