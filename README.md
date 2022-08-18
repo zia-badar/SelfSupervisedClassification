@@ -11,7 +11,7 @@ Above debaised contrastive loss is used to learn the representation of the data,
 ## Augmentation technique used:
 <img src="https://i.imgur.com/JSoTlxo.png" width="800" />
 
-Augmentation technique used is taken as an idea from this [paper](https://arxiv.org/pdf/1603.09246.pdf) , they are also using it for learning data representation but in a different way, although image shows 4x4 splits model is trained with 8x8 for better performance.
+Augmentation technique used is taken as an idea from this [paper](https://arxiv.org/abs/1603.09246) , they are also using it for learning data representation but in a different way, although image shows 4x4 splits model is trained with 8x8 for better performance.
 
 # Results
 <img src="https://i.imgur.com/B5GA9Q7.png" width="600" />
