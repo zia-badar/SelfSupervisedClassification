@@ -14,8 +14,9 @@ class ContrastiveWeightedKNN():
         self.k = k
 
     def shuffle(self):
-        self.train_x = self.train_x[torch.randperm(self.train_x.shape[0])]
-        self.train_y = self.train_y[torch.randperm(self.train_y.shape[0])]
+        random_order = torch.randperm(self.train_x.shape[0])
+        self.train_x = self.train_x[random_order]
+        self.train_y = self.train_y[random_order]
 
     def w_knn(self, test_x):
         train_x = self.train_x[:(int)(self.train_subset_ratio * len(self.train_x))]

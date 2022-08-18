@@ -89,7 +89,7 @@ class BigEarthDataset(Dataset):
                     x[i] = torchvision.transforms.functional.rotate(img, ind.item() * 90)
             elif self.augmentation_type == 2:
                 percentage_to_mask = 0.2
-                no_splits = torch.tensor([4, 4])
+                no_splits = torch.tensor([8, 8])
                 image_size = torch.tensor([size[0], size[1]])
                 split_size = (image_size / no_splits).int()
                 for i in range(self.augmentation_count):
