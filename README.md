@@ -14,10 +14,11 @@ Above debaised contrastive loss is used to learn the representation of the data,
 Augmentation technique used is taken as an idea from this [paper](https://arxiv.org/abs/1603.09246) , they are also using it for learning data representation but in a different way, although image shows 4x4 splits model is trained with 8x8 for better performance.
 
 # Results
-<img src="https://i.imgur.com/B5GA9Q7.png" width="600" />
-<img src="https://i.imgur.com/fDImWV9.png" width="600" />
+<img src="https://i.imgur.com/f2Qb3F8.png" width="600" />
+<img src="https://i.imgur.com/k11OL5R.png" width="600" />
 
-Although the self-supervise gets very close to supervised learning, still it is behind supervised learning, which I think might get improved by using a bigger batch size for contrastive learning because I was limited by 2 A100 gpus or using a more complex augmentation technique.
+- I compared the self-supervised with supervised and also with a random representation to make sure the self-supervised representation has learned the data representation and the performance is not only as a result of weight knn.
+- Although the self-supervised gets very close to supervised learning, still it is behind supervised learning, which I think might get improved by using a bigger batch size for contrastive learning because I was limited by 2 A100 gpus or using a more complex augmentation technique.
 
 ## Requirements:
 The code has been tested with the following requirements.
@@ -44,7 +45,7 @@ There are 3 important file in project, supervised.py, self-supervised.py, evalua
 - run evaluation.py to evaluate the train models.[make sure self-supervised models folder contain only one model because evaluation of self-supervised model is done on percentage of data not on different models unlike supervised, to also evaluate random model you would need to evaluate one model at a time]
 
 #### Download pretrained
-- download pretrained models and evaluations from [link](https://drive.google.com/file/d/1Pt-_N_CwU_fb_BREFQa21Xr5JCCB4Zx3/view?usp=sharing)
+- download pretrained models and evaluations from [link](https://drive.google.com/file/d/1YjzonPqeg7z1vE087YTeBxm6VJgv0cWy/view?usp=sharing)
 
 ### Train from scratch and evaluate
 - run data preperation task

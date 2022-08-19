@@ -108,7 +108,7 @@ if __name__ == '__main__':
     self_supervised_evaluation_directory = self_supervised_result_directory / 'evaluations'
     self_supervised_model_directory = self_supervised_result_directory / 'models'
     self_supervised_evaluation_name = 'self-supervised'
-    self_supervised_random_evaluation_name = 'self-supervised_random'
+    self_supervised_random_evaluation_name = 'self-supervised-random'
 
     evaluator = Evaluator(self_supervised_evaluation_directory, self_supervised_model_directory)
     dataloaders = {'test': test_dataloader}
@@ -137,7 +137,8 @@ if __name__ == '__main__':
 
     # plotting
     Evaluator.plot(
-        ['supervised', 'contrastive repr + wknn'],
+        ['supervised', 'contrastive repr + wknn', 'random repr + wknn'],
         [Evaluator.load(supervised_evaluation_directory / supervised_evaluation_name),
-         Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name)
+         Evaluator.load(self_supervised_evaluation_directory / self_supervised_evaluation_name),
+         Evaluator.load(self_supervised_evaluation_directory / self_supervised_random_evaluation_name)
          ])
