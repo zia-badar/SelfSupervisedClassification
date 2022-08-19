@@ -17,7 +17,7 @@ Augmentation technique used is taken as an idea from this [paper](https://arxiv.
 <img src="https://i.imgur.com/f2Qb3F8.png" width="600" />
 <img src="https://i.imgur.com/k11OL5R.png" width="600" />
 
-- I compared the self-supervised with supervised and also with a random representation to make sure the self-supervised representation has learned the data representation and the performance is not only as a result of weight knn.
+- I compared self-supervised classification with supervised and random. To make sure the self-supervised representation has learned the data representation, I compared with random representation and found performance is dependent on representation and not dependent on weighted knn.
 - Although the self-supervised gets very close to supervised learning, still it is behind supervised learning, which I think might get improved by using a bigger batch size for contrastive learning because I was limited by 2 A100 gpus or using a more complex augmentation technique.
 
 ## Requirements:
